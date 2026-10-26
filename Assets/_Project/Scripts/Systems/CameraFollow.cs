@@ -1,3 +1,4 @@
+using DungeonSurvivors.Core;
 using UnityEngine;
 
 namespace DungeonSurvivors.Systems
@@ -9,8 +10,10 @@ namespace DungeonSurvivors.Systems
     public class CameraFollow : MonoBehaviour
     {
         [SerializeField] private Transform target;
-        [SerializeField] private float smoothTime = 0.12f;
+        [SerializeField] private float smoothTime = 0.09f;
         [SerializeField] private Vector2 offset = Vector2.zero;
+        [SerializeField] private float lookAheadDistance = 0.55f;
+        [SerializeField] private float lookAheadSmooth = 3.5f;
 
         [Header("边界（勾选后生效）")]
         [SerializeField] private bool useBounds;
@@ -30,6 +33,8 @@ namespace DungeonSurvivors.Systems
         [SerializeField] private float punchTimer;
 
         private Vector3 velocity;
+        private Vector2 lookAhead;
+        private Vector3 lastTargetPosition;
 
         private void Awake()
         {
@@ -69,7 +74,18 @@ namespace DungeonSurvivors.Systems
         {
             if (target == null) return;
 
-            Vector2 desired = (Vector2)target.position + offset;
+            bool paused = GameManager.Instance != null && GameManager.Instance.State != GameState.Playing;
+            Vector3 targetPosition = target.position;
+            float deltaTime = Time.deltaTime;
+            Vector2 targetVelocity = deltaTime > 0f ? (Vector2)((targetPosition - lastTargetPosition) / deltaTime) : Vector2.zero;
+            lastTargetPosition = targetPosition;
+
+            Vector2 desiredLookAhead = targetVelocity.sqrMagnitude > 0.01f
+                ? targetVelocity.normalized * lookAheadDistance * Mathf.Clamp01(targetVelocity.magnitude / 6f)
+                : Vector2.zero;
+            lookAhead = Vector2.Lerp(lookAhead, desiredLookAhead, Mathf.Clamp01(lookAheadSmooth * deltaTime));
+
+            Vector2 desired = (Vector2)targetPosition + offset + lookAhead;
             if (useBounds)
             {
                 desired.x = Mathf.Clamp(desired.x, minBounds.x, maxBounds.x);
@@ -79,12 +95,19 @@ namespace DungeonSurvivors.Systems
             Vector3 desiredPosition = new Vector3(desired.x, desired.y, transform.position.z);
             transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref velocity, smoothTime);
 
-            if (shakeTimer > 0f)
+            if (paused)
+            {
+                shakeTimer = 0f;
+                shakeIntensity = 0f;
+                punchTimer = 0f;
+                if (targetCamera != null) targetCamera.orthographicSize = baseOrthographicSize;
+            }
+            else if (shakeTimer > 0f)
             {
                 float ratio = shakeDuration <= 0f ? 0f : Mathf.Clamp01(shakeTimer / shakeDuration);
                 Vector2 offset = Random.insideUnitCircle * (shakeIntensity * ratio);
                 transform.position += (Vector3)offset;
-                shakeTimer -= Time.deltaTime;
+                shakeTimer -= Time.unscaledDeltaTime;
                 if (shakeTimer <= 0f) shakeIntensity = 0f;
             }
 
@@ -92,7 +115,7 @@ namespace DungeonSurvivors.Systems
             {
                 float ratio = punchDuration <= 0f ? 0f : Mathf.Clamp01(punchTimer / punchDuration);
                 targetCamera.orthographicSize = baseOrthographicSize - punchAmount * ratio;
-                punchTimer -= Time.deltaTime;
+                punchTimer -= Time.unscaledDeltaTime;
                 if (punchTimer <= 0f)
                 {
                     targetCamera.orthographicSize = baseOrthographicSize;

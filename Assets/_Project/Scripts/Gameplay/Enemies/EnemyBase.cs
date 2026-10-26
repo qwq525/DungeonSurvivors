@@ -35,7 +35,7 @@ namespace DungeonSurvivors.Gameplay.Enemies
         [SerializeField] private int xpValue = 1;
 
         [Header("波次成长")]
-        [SerializeField] private int healthPerWave = 3;
+        [SerializeField] private int healthPerWave = 2;
         [SerializeField] private float speedPerWavePercent = 0.04f;
         [SerializeField] private float knockbackDistance = 0.12f;
 
@@ -63,6 +63,9 @@ namespace DungeonSurvivors.Gameplay.Enemies
 
         public bool IsElite { get; private set; }
         public bool IsBoss { get; private set; }
+
+        public int CurrentHealth { get { return health; } }
+        public int MaxHealth { get { return maxHealth; } }
 
         public void Initialize(Action<EnemyBase> onDespawnCallback)
         {
@@ -114,6 +117,7 @@ namespace DungeonSurvivors.Gameplay.Enemies
         private void Update()
         {
             if (health <= 0) return;
+            if (GameManager.Instance != null && GameManager.Instance.State != GameState.Playing) return;
 
             if (target == null)
             {
@@ -230,7 +234,7 @@ namespace DungeonSurvivors.Gameplay.Enemies
 
             if (boss)
             {
-                maxHealth = Mathf.RoundToInt(maxHealth * 20f);
+                maxHealth = Mathf.RoundToInt(maxHealth * 10f);
                 health = maxHealth;
                 moveSpeed *= 0.8f;
                 contactDamage = baseContactDamage * 3;
@@ -240,7 +244,7 @@ namespace DungeonSurvivors.Gameplay.Enemies
             }
             else if (elite)
             {
-                maxHealth = Mathf.RoundToInt(maxHealth * 5f);
+                maxHealth = Mathf.RoundToInt(maxHealth * 3.4f);
                 health = maxHealth;
                 contactDamage = baseContactDamage * 2;
                 xpValue = baseXpValue * 5;

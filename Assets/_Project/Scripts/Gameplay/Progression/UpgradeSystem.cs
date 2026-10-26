@@ -76,6 +76,11 @@ namespace DungeonSurvivors.Gameplay.Progression
 
             choosing = true;
             Time.timeScale = 0f;
+
+            // 每级默认成长：攻击力 +1，最大生命 +5（并治疗）
+            if (weapon != null) weapon.AddDamage(1);
+            if (playerHealth != null) playerHealth.AddMaxHealth(5, true);
+
             pendingOptions = BuildOptions();
             panel.Show(pendingOptions, OnOptionChosen);
 

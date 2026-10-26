@@ -43,9 +43,7 @@ namespace DungeonSurvivors.Systems
 
         private void OnDamageDealt(DamageDealtEvent evt)
         {
-            if (cameraFollow != null) cameraFollow.Shake(Mathf.Clamp(0.03f + evt.Amount * 0.004f, 0.03f, 0.12f), 0.08f);
-            if (screenFlash != null) screenFlash.Flash(Color.white, 0.05f, 0.07f);
-            StartHitstop(damageHitstop);
+            // 普通命中只保留敌人自身闪白 + 击退（EnemyBase 内处理），不再全屏闪/震屏/顿帧。
         }
 
         private void OnEnemyDied(EnemyDiedEvent evt)
@@ -64,8 +62,8 @@ namespace DungeonSurvivors.Systems
         {
             if (cameraFollow != null)
             {
-                cameraFollow.Shake(0.2f, 0.24f);
-                cameraFollow.PunchZoom(0.16f, 0.2f);
+                cameraFollow.Shake(0.10f, 0.16f);
+                cameraFollow.PunchZoom(0.08f, 0.14f);
             }
 
             if (screenFlash != null) screenFlash.Flash(new Color(1f, 0.15f, 0.15f), 0.28f, 0.28f);

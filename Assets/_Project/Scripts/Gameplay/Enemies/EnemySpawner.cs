@@ -23,6 +23,7 @@ namespace DungeonSurvivors.Gameplay.Enemies
         [Header("限制")]
         [SerializeField] private int maxAlive = 50;
         [SerializeField] private float spawnRadius = 9.5f;
+        [SerializeField] private float spawnRadiusY = 9.5f;
 
         private ObjectPool<EnemyBase> pool;
         private readonly List<EnemyBase> alive = new List<EnemyBase>();
@@ -40,6 +41,16 @@ namespace DungeonSurvivors.Gameplay.Enemies
         {
             enemyPrefab = prefab;
             poolRoot = poolRootTransform;
+        }
+
+        public void TuneForArena(int baseCount, int growth, int maxAliveCount, float radius, float drip, float radiusY = 9.5f)
+        {
+            baseEnemiesPerWave = Mathf.Max(1, baseCount);
+            enemiesGrowthPerWave = Mathf.Max(0, growth);
+            maxAlive = Mathf.Max(10, maxAliveCount);
+            spawnRadius = Mathf.Max(3f, radius);
+            spawnRadiusY = Mathf.Max(3f, radiusY);
+            dripInterval = Mathf.Max(0.05f, drip);
         }
 
         private void Awake()
@@ -107,7 +118,7 @@ namespace DungeonSurvivors.Gameplay.Enemies
         private void SpawnSpecial(bool boss)
         {
             float angle = Random.Range(0f, Mathf.PI * 2f);
-            Vector2 position = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * spawnRadius;
+            Vector2 position = new Vector2(Mathf.Cos(angle) * spawnRadius, Mathf.Sin(angle) * spawnRadiusY);
 
             EnemyBase enemy = pool.Get();
             enemy.transform.position = position;
@@ -120,7 +131,7 @@ namespace DungeonSurvivors.Gameplay.Enemies
         private void SpawnOne()
         {
             float angle = Random.Range(0f, Mathf.PI * 2f);
-            Vector2 position = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * spawnRadius;
+            Vector2 position = new Vector2(Mathf.Cos(angle) * spawnRadius, Mathf.Sin(angle) * spawnRadiusY);
 
             EnemyBase enemy = pool.Get();
             enemy.transform.position = position;
@@ -137,7 +148,7 @@ namespace DungeonSurvivors.Gameplay.Enemies
             {
                 float angle = Random.Range(0f, Mathf.PI * 2f);
                 float radius = Random.Range(3f, spawnRadius);
-                Vector2 position = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+                Vector2 position = new Vector2(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * spawnRadiusY * (radius / Mathf.Max(0.01f, spawnRadius)));
 
                 EnemyBase enemy = pool.Get();
                 enemy.transform.position = position;

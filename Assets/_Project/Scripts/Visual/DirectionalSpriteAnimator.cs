@@ -63,7 +63,8 @@ namespace DungeonSurvivors.Visual
             if (Mathf.Abs(velocity.x) > Mathf.Abs(velocity.y))
             {
                 direction = 2;
-                flip = velocity.x < 0f;
+                // 素材 side 行默认朝左，所以向右移动时才翻转
+                flip = velocity.x > 0f;
             }
             else if (velocity.y > 0f)
             {

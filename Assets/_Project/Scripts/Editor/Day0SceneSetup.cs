@@ -39,8 +39,8 @@ namespace DungeonSurvivors.EditorTools
         private const string SlimeArtDir = "Assets/ThirdParty/Craftpix/Slime";
         private const string BaseMaleArtDir = "Assets/ThirdParty/Craftpix/BaseMale";
         private const string FontAssetPath = "Assets/_Project/Art/Fonts/NotoSansCJKsc-Regular.otf";
-        private const float ArenaHalfWidth = 10f;
-        private const float ArenaHalfHeight = 6f;
+        private const float ArenaHalfWidth = 15f;
+        private const float ArenaHalfHeight = 9f;
 
         [MenuItem("DungeonSurvivors/Setup Scene (W1)")]
         public static void Run()
@@ -78,6 +78,7 @@ namespace DungeonSurvivors.EditorTools
             Sprite gemSprite = CreateSprite("gem_placeholder.png", 16, GemPixel, false);
             Sprite glowSprite = CreateSprite("glow_placeholder.png", 128, GlowPixel, false);
             Sprite vignetteSprite = CreateSprite("vignette_placeholder.png", 256, VignettePixel, false);
+            Sprite circleSprite = CreateSprite("circle_placeholder.png", 128, CirclePixel, false);
 
             EnemyBase enemyPrefab = CreateEnemyPrefab(slimeSprite, enemyArt);
             Projectile projectilePrefab = CreateProjectilePrefab(projectileSprite);
@@ -113,10 +114,10 @@ namespace DungeonSurvivors.EditorTools
             groundRenderer.sortingOrder = -10;
 
             // ---------- Atmosphere: torches ----------
-            CreateTorch("Torch_TL", new Vector2(-8.4f, 4.6f), glowSprite);
-            CreateTorch("Torch_TR", new Vector2(8.4f, 4.6f), glowSprite);
-            CreateTorch("Torch_BL", new Vector2(-8.4f, -4.6f), glowSprite);
-            CreateTorch("Torch_BR", new Vector2(8.4f, -4.6f), glowSprite);
+            CreateTorch("Torch_TL", new Vector2(-ArenaHalfWidth + 1.5f, ArenaHalfHeight - 1.4f), glowSprite);
+            CreateTorch("Torch_TR", new Vector2(ArenaHalfWidth - 1.5f, ArenaHalfHeight - 1.4f), glowSprite);
+            CreateTorch("Torch_BL", new Vector2(-ArenaHalfWidth + 1.5f, -ArenaHalfHeight + 1.4f), glowSprite);
+            CreateTorch("Torch_BR", new Vector2(ArenaHalfWidth - 1.5f, -ArenaHalfHeight + 1.4f), glowSprite);
 
             CreateWall("Wall_Top", new Vector2(0f, ArenaHalfHeight + 0.5f), new Vector2(ArenaHalfWidth * 2f + 2f, 1f));
             CreateWall("Wall_Bottom", new Vector2(0f, -ArenaHalfHeight - 0.5f), new Vector2(ArenaHalfWidth * 2f + 2f, 1f));
@@ -169,15 +170,17 @@ namespace DungeonSurvivors.EditorTools
             // ---------- Camera follow ----------
             CameraFollow follow = cameraObject.AddComponent<CameraFollow>();
             follow.SetTarget(playerObject.transform);
-            float halfViewWidth = camera.orthographicSize * 16f / 9f;
+            float halfViewHeight = camera.orthographicSize;
+            float halfViewWidth = halfViewHeight * 16f / 9f;
             follow.SetBounds(
-                new Vector2(-(ArenaHalfWidth - halfViewWidth), -0.5f),
-                new Vector2(ArenaHalfWidth - halfViewWidth, 0.5f));
+                new Vector2(-(ArenaHalfWidth - halfViewWidth + 0.8f), -(ArenaHalfHeight - halfViewHeight + 0.8f)),
+                new Vector2(ArenaHalfWidth - halfViewWidth + 0.8f, ArenaHalfHeight - halfViewHeight + 0.8f));
 
             // ---------- Spawners ----------
             GameObject enemySpawnerObject = new GameObject("EnemySpawner");
             EnemySpawner enemySpawner = enemySpawnerObject.AddComponent<EnemySpawner>();
             enemySpawner.Configure(enemyPrefab, poolRoot);
+            enemySpawner.TuneForArena(10, 4, 120, 13.5f, 0.22f, 8.2f);
 
             GameObject gemSpawnerObject = new GameObject("GemSpawner");
             GemSpawner gemSpawner = gemSpawnerObject.AddComponent<GemSpawner>();
@@ -185,6 +188,9 @@ namespace DungeonSurvivors.EditorTools
 
             // ---------- HUD ----------
             Canvas hudCanvas = CreateHud();
+            CreateBossHealthBar(hudCanvas.transform);
+            CreateSkillCooldown(hudCanvas.transform, circleSprite);
+            CreateMinimap(hudCanvas.transform);
             CreateVignette(hudCanvas.transform, vignetteSprite);
             DamageNumberSpawner damageNumbers = hudCanvas.gameObject.AddComponent<DamageNumberSpawner>();
             damageNumbers.Configure(hudCanvas);
@@ -394,16 +400,13 @@ namespace DungeonSurvivors.EditorTools
             Transform hudRoot = hudGroup.transform;
 
             // 血条
-            Image healthBackground = CreateImage("HealthBar_Background", hudRoot, new Color32(36, 30, 51, 220));
+            Image healthBackground = CreateImage("HealthBar_Background", hudRoot, new Color32(36, 30, 51, 235));
             SetRect(healthBackground.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(24f, -24f), new Vector2(340f, 30f));
+                new Vector2(24f, -24f), new Vector2(360f, 32f));
 
             Image healthFill = CreateImage("HealthBar_Fill", healthBackground.transform, new Color32(255, 90, 90, 255));
             SetRect(healthFill.rectTransform, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            healthFill.type = Image.Type.Filled;
-            healthFill.fillMethod = Image.FillMethod.Horizontal;
-            healthFill.fillOrigin = 0;
-            healthFill.fillAmount = 1f;
+            healthFill.type = Image.Type.Simple;
 
             Text healthText = CreateText("HealthText", healthBackground.transform, "100 / 100", 18, new Color32(255, 246, 224, 255), TextAnchor.MiddleCenter);
             SetRect(healthText.rectTransform, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
@@ -419,16 +422,16 @@ namespace DungeonSurvivors.EditorTools
                 new Vector2(0f, -24f), new Vector2(220f, 40f));
 
             // 经验条
-            Image xpBackground = CreateImage("XpBar_Background", hudRoot, new Color32(18, 88, 82, 220));
+            Image xpBackground = CreateImage("XpBar_Background", hudRoot, new Color32(30, 24, 52, 235));
             SetRect(xpBackground.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0f, 24f), new Vector2(-48f, 16f));
+                new Vector2(0f, 22f), new Vector2(-48f, 24f));
 
-            Image xpFill = CreateImage("XpBar_Fill", xpBackground.transform, new Color32(60, 224, 200, 255));
+            Image xpFill = CreateImage("XpBar_Fill", xpBackground.transform, new Color32(130, 105, 255, 255));
             SetRect(xpFill.rectTransform, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            xpFill.type = Image.Type.Filled;
-            xpFill.fillMethod = Image.FillMethod.Horizontal;
-            xpFill.fillOrigin = 0;
-            xpFill.fillAmount = 0f;
+            xpFill.type = Image.Type.Simple;
+
+            Text xpText = CreateText("XpText", xpBackground.transform, "EXP 0 / 5", 16, new Color32(235, 230, 255, 255), TextAnchor.MiddleCenter);
+            SetRect(xpText.rectTransform, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
 
             // 击杀数
             Text killsText = CreateText("KillsText", hudRoot, "击杀 0", 24, new Color32(255, 246, 224, 255), TextAnchor.MiddleRight);
@@ -440,7 +443,7 @@ namespace DungeonSurvivors.EditorTools
             SetRect(waveText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                 new Vector2(0f, -66f), new Vector2(220f, 30f));
 
-            hud.Configure(healthFill, xpFill, levelText, timerText, killsText, waveText, hudGroup, healthText);
+            hud.Configure(healthFill, xpFill, levelText, timerText, killsText, waveText, hudGroup, healthText, xpText);
             return canvas;
         }
 
@@ -536,6 +539,99 @@ namespace DungeonSurvivors.EditorTools
             rect.pivot = pivot;
             rect.anchoredPosition = anchoredPosition;
             rect.sizeDelta = sizeDelta;
+        }
+
+        private static void CreateMinimap(Transform parent)
+        {
+            GameObject cameraObject = new GameObject("MinimapCamera");
+            Camera minimapCamera = cameraObject.AddComponent<Camera>();
+            minimapCamera.orthographic = true;
+            minimapCamera.orthographicSize = 6.5f;
+            minimapCamera.clearFlags = CameraClearFlags.SolidColor;
+            minimapCamera.backgroundColor = new Color32(10, 8, 14, 255);
+            minimapCamera.transform.position = new Vector3(0f, 0f, -10f);
+
+            GameObject root = CreateUiObject("Minimap", parent);
+            SetRect(root.GetComponent<RectTransform>(), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
+                new Vector2(-22f, -84f), new Vector2(176f, 176f));
+
+            Image border = root.AddComponent<Image>();
+            border.color = new Color32(46, 38, 62, 215);
+
+            GameObject viewObject = CreateUiObject("View", root.transform);
+            RawImage view = viewObject.AddComponent<RawImage>();
+            view.color = new Color32(255, 255, 255, 225);
+            SetRect(view.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(-8f, -8f));
+
+            Text label = CreateText("MapLabel", root.transform, "MAP", 14, new Color32(255, 246, 224, 220), TextAnchor.UpperLeft);
+            SetRect(label.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(8f, -6f), new Vector2(120f, 20f));
+
+            GameObject markerObject = CreateUiObject("PlayerMarker", root.transform);
+            Image marker = markerObject.AddComponent<Image>();
+            marker.color = new Color32(120, 255, 170, 255);
+            SetRect(marker.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(8f, 8f));
+
+            MinimapCamera minimap = cameraObject.AddComponent<MinimapCamera>();
+            minimap.Configure(minimapCamera, view, root, null, 6.5f);
+            root.SetActive(false);
+        }
+
+        private static void CreateBossHealthBar(Transform parent)
+        {
+            GameObject root = CreateUiObject("BossHealthBar", parent);
+            SetRect(root.GetComponent<RectTransform>(), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -104f), new Vector2(520f, 24f));
+
+            Image background = root.AddComponent<Image>();
+            background.color = new Color32(42, 22, 30, 235);
+
+            GameObject fillObject = CreateUiObject("Fill", root.transform);
+            Image fill = fillObject.AddComponent<Image>();
+            fill.color = new Color32(225, 62, 70, 255);
+            SetRect(fill.rectTransform, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+
+            Text label = CreateText("Label", root.transform, "勇者队长", 16, new Color32(255, 246, 224, 255), TextAnchor.MiddleCenter);
+            SetRect(label.rectTransform, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+
+            BossHealthBar bar = parent.GetComponent<BossHealthBar>();
+            if (bar == null) bar = parent.gameObject.AddComponent<BossHealthBar>();
+            bar.Configure(root, fill, label);
+            root.SetActive(false);
+        }
+
+        private static void CreateSkillCooldown(Transform parent, Sprite circleSprite)
+        {
+            GameObject root = CreateUiObject("SkillCooldown", parent);
+            SetRect(root.GetComponent<RectTransform>(), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f),
+                new Vector2(-90f, 90f), new Vector2(112f, 112f));
+
+            Image background = root.AddComponent<Image>();
+            background.sprite = circleSprite;
+            background.color = new Color32(255, 210, 80, 235);
+
+            GameObject fillObject = CreateUiObject("Cooldown", root.transform);
+            Image fill = fillObject.AddComponent<Image>();
+            fill.sprite = circleSprite;
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Radial360;
+            fill.fillOrigin = 0;
+            fill.fillAmount = 0f;
+            fill.color = new Color32(22, 18, 30, 235);
+            SetRect(fill.rectTransform, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+
+            Text key = CreateText("Key", root.transform, "SPACE", 18, new Color32(255, 246, 224, 255), TextAnchor.MiddleCenter);
+            SetRect(key.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 8f), new Vector2(0f, 22f));
+
+            Text name = CreateText("Name", root.transform, "闪避", 16, new Color32(40, 30, 50, 255), TextAnchor.MiddleCenter);
+            SetRect(name.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -6f), new Vector2(0f, 22f));
+
+            SkillCooldownUI skill = parent.GetComponent<SkillCooldownUI>();
+            if (skill == null) skill = parent.gameObject.AddComponent<SkillCooldownUI>();
+            skill.Configure(root, fill, key);
+            root.SetActive(false);
         }
 
         private static void CreateTorch(string name, Vector2 position, Sprite glowSprite)
@@ -966,6 +1062,17 @@ namespace DungeonSurvivors.EditorTools
         private static AudioClip LoadAudioClip(string path)
         {
             return AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+        }
+
+        private static Color32 CirclePixel(int x, int y)
+        {
+            const int size = 128;
+            float dx = (x - (size - 1) * 0.5f) / (size * 0.5f);
+            float dy = (y - (size - 1) * 0.5f) / (size * 0.5f);
+            float distance = Mathf.Sqrt(dx * dx + dy * dy);
+            float alpha = distance <= 1f ? 1f : Mathf.Clamp01(1f - (distance - 1f) * 6f);
+            if (distance < 0.78f) alpha = 0.18f;
+            return new Color32(255, 255, 255, (byte)(alpha * 255f));
         }
 
         private static Color32 GlowPixel(int x, int y)

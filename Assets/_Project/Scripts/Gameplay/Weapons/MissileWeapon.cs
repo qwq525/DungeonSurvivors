@@ -14,7 +14,7 @@ namespace DungeonSurvivors.Gameplay.Weapons
         [SerializeField] private Transform poolRoot;
         [SerializeField] private float cooldown = 0.8f;
         [SerializeField] private float range = 7f;
-        [SerializeField] private int damage = 3;
+        [SerializeField] private int damage = 6;
 
         private ObjectPool<Projectile> pool;
         private float cooldownTimer;

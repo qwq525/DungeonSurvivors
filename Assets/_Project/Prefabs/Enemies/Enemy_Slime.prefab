@@ -103,6 +103,6 @@ MonoBehaviour:
   contactRadius: 0.55
   attackInterval: 0.8
   xpValue: 1
-  healthPerWave: 3
+  healthPerWave: 2
   speedPerWavePercent: 0.04
   knockbackDistance: 0.12

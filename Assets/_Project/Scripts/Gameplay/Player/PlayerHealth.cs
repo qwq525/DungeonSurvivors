@@ -83,6 +83,7 @@ namespace DungeonSurvivors.Gameplay.Player
         private void OnDamaged(PlayerDamagedEvent evt)
         {
             if (health <= 0 || invulnerableTimer > 0f || invincible) return;
+            if (GameManager.Instance != null && GameManager.Instance.State != GameState.Playing) return;
 
             health -= Mathf.Max(0, evt.Amount);
             invulnerableTimer = invulnerableAfterHit;
