@@ -52,6 +52,7 @@ namespace DungeonSurvivors.Gameplay.Enemies
         private float hurtTimer;
         private Action<EnemyBase> despawnCallback;
         private Transform target;
+        private EnemyCombatProfile profile;
 
         /// <summary>存活敌人列表（MVP 索敌用；后续换成空间哈希索引）。</summary>
         public static readonly List<EnemyBase> ActiveEnemies = new List<EnemyBase>();
@@ -82,6 +83,7 @@ namespace DungeonSurvivors.Gameplay.Enemies
             baseXpValue = xpValue;
             baseContactDamage = contactDamage;
             health = maxHealth;
+            profile = GetComponent<EnemyCombatProfile>();
         }
 
         private void OnEnable()
@@ -146,16 +148,51 @@ namespace DungeonSurvivors.Gameplay.Enemies
                     break;
 
                 case State.Chase:
+                    if (profile != null && profile.IsRanged)
+                    {
+                        bool hasSight = HasLineOfSight();
+                        if (distance > profile.AttackRange || !hasSight)
+                        {
+                            MoveTowards(GetMoveDirection(toPlayer.normalized));
+                        }
+                        else if (distance < profile.RetreatDistance)
+                        {
+                            MoveTowards(-toPlayer.normalized);
+                        }
+                        else
+                        {
+                            state = State.Attack;
+                        }
+                        break;
+                    }
+
                     if (distance <= contactRadius)
                     {
                         state = State.Attack;
-                        Debug.Log("[Enemy] Attack start, distance=" + distance.ToString("F2") + " radius=" + contactRadius.ToString("F2") + " dmg=" + contactDamage);
                         break;
                     }
-                    MoveTowards(toPlayer.normalized);
+
+                    MoveTowards(GetMoveDirection(toPlayer.normalized));
                     break;
 
                 case State.Attack:
+                    if (profile != null && profile.IsRanged)
+                    {
+                        if (distance > profile.AttackRange * 1.05f || distance < profile.RetreatDistance * 0.9f)
+                        {
+                            state = State.Chase;
+                            break;
+                        }
+
+                        attackTimer -= Time.deltaTime;
+                        if (attackTimer <= 0f)
+                        {
+                            attackTimer = profile.AttackInterval;
+                            PerformRangedAttack(toPlayer.normalized);
+                        }
+                        break;
+                    }
+
                     if (distance > contactRadius * 1.15f)
                     {
                         state = State.Chase;
@@ -173,6 +210,38 @@ namespace DungeonSurvivors.Gameplay.Enemies
                     state = State.Chase;
                     break;
             }
+        }
+
+        private Vector2 GetMoveDirection(Vector2 fallback)
+        {
+            if (TerrainGrid.Instance != null)
+            {
+                Vector2 flow = TerrainGrid.Instance.GetDirection(transform.position);
+                if (flow.sqrMagnitude > 0.0001f) return flow;
+            }
+
+            return fallback;
+        }
+
+        private bool HasLineOfSight()
+        {
+            if (target == null) return false;
+            RaycastHit2D hit = Physics2D.Linecast(transform.position, target.position);
+            if (hit.collider == null) return true;
+            return hit.collider.GetComponent<PlayerHealth>() != null || hit.collider.transform.IsChildOf(transform);
+        }
+
+        private void PerformRangedAttack(Vector2 direction)
+        {
+            if (!HasLineOfSight()) return;
+            if (profile != null && profile.ProjectilePrefab != null)
+            {
+                EnemyProjectile projectile = Instantiate(profile.ProjectilePrefab, transform.position, Quaternion.identity);
+                projectile.Launch(direction, profile.Damage);
+                return;
+            }
+
+            EventBus.Publish(new PlayerDamagedEvent(profile != null ? profile.Damage : contactDamage));
         }
 
         private void MoveTowards(Vector2 direction)

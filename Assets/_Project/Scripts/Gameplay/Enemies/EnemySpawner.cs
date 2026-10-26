@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using DungeonSurvivors.Core;
+using DungeonSurvivors.Gameplay.Player;
+using DungeonSurvivors.Systems;
 using UnityEngine;
 
 namespace DungeonSurvivors.Gameplay.Enemies
@@ -11,7 +13,7 @@ namespace DungeonSurvivors.Gameplay.Enemies
     /// </summary>
     public class EnemySpawner : MonoBehaviour
     {
-        [SerializeField] private EnemyBase enemyPrefab;
+        [SerializeField] private EnemyBase[] enemyPrefabs;
         [SerializeField] private Transform poolRoot;
 
         [Header("波次")]
@@ -25,7 +27,8 @@ namespace DungeonSurvivors.Gameplay.Enemies
         [SerializeField] private float spawnRadius = 9.5f;
         [SerializeField] private float spawnRadiusY = 9.5f;
 
-        private ObjectPool<EnemyBase> pool;
+        private readonly List<ObjectPool<EnemyBase>> pools = new List<ObjectPool<EnemyBase>>();
+        private readonly Dictionary<EnemyBase, ObjectPool<EnemyBase>> poolByInstance = new Dictionary<EnemyBase, ObjectPool<EnemyBase>>();
         private readonly List<EnemyBase> alive = new List<EnemyBase>();
         private float waveTimer;
         private float dripTimer;
@@ -39,7 +42,12 @@ namespace DungeonSurvivors.Gameplay.Enemies
 
         public void Configure(EnemyBase prefab, Transform poolRootTransform)
         {
-            enemyPrefab = prefab;
+            Configure(new[] { prefab }, poolRootTransform);
+        }
+
+        public void Configure(EnemyBase[] prefabs, Transform poolRootTransform)
+        {
+            enemyPrefabs = prefabs;
             poolRoot = poolRootTransform;
         }
 
@@ -56,13 +64,18 @@ namespace DungeonSurvivors.Gameplay.Enemies
         private void Awake()
         {
             waveTimer = 1.5f;
-            if (enemyPrefab == null) return;
-            pool = new ObjectPool<EnemyBase>(CreateEnemy, poolRoot, 20, maxAlive + 20);
+            if (enemyPrefabs == null || enemyPrefabs.Length == 0) return;
+            for (int i = 0; i < enemyPrefabs.Length; i++)
+            {
+                EnemyBase prefab = enemyPrefabs[i];
+                if (prefab == null) continue;
+                pools.Add(new ObjectPool<EnemyBase>(() => CreateEnemy(prefab), poolRoot, 10, Mathf.Max(20, (maxAlive + 20) / enemyPrefabs.Length)));
+            }
         }
 
-        private EnemyBase CreateEnemy()
+        private EnemyBase CreateEnemy(EnemyBase prefab)
         {
-            EnemyBase enemy = Instantiate(enemyPrefab, poolRoot);
+            EnemyBase enemy = Instantiate(prefab, poolRoot);
             enemy.Initialize(ReleaseEnemy);
             return enemy;
         }
@@ -70,12 +83,34 @@ namespace DungeonSurvivors.Gameplay.Enemies
         private void ReleaseEnemy(EnemyBase enemy)
         {
             alive.Remove(enemy);
-            pool.Release(enemy);
+            ObjectPool<EnemyBase> owner;
+            if (poolByInstance.TryGetValue(enemy, out owner))
+            {
+                poolByInstance.Remove(enemy);
+                owner.Release(enemy);
+            }
+        }
+
+        private EnemyBase GetEnemy()
+        {
+            if (pools.Count == 0) return null;
+            ObjectPool<EnemyBase> selected = pools[Random.Range(0, pools.Count)];
+            EnemyBase enemy = selected.Get();
+            poolByInstance[enemy] = selected;
+            return enemy;
+        }
+
+        private Vector2 GetSpawnPosition()
+        {
+            if (TerrainGrid.Instance == null) return Vector2.zero;
+            PlayerController player = PlayerController.Instance;
+            Vector2 center = player != null ? (Vector2)player.transform.position : Vector2.zero;
+            return TerrainGrid.Instance.FindSpawnPosition(center, 7f);
         }
 
         private void Update()
         {
-            if (pool == null) return;
+            if (pools.Count == 0) return;
             if (GameManager.Instance != null && GameManager.Instance.State != GameState.Playing) return;
 
             if (pendingEnemies > 0)
@@ -120,8 +155,9 @@ namespace DungeonSurvivors.Gameplay.Enemies
             float angle = Random.Range(0f, Mathf.PI * 2f);
             Vector2 position = new Vector2(Mathf.Cos(angle) * spawnRadius, Mathf.Sin(angle) * spawnRadiusY);
 
-            EnemyBase enemy = pool.Get();
-            enemy.transform.position = position;
+            EnemyBase enemy = GetEnemy();
+            if (enemy == null) return;
+            enemy.transform.position = TerrainGrid.Instance != null ? GetSpawnPosition() : position;
             enemy.ApplyRank(waveIndex - 1, !boss, boss);
             alive.Add(enemy);
 
@@ -133,8 +169,10 @@ namespace DungeonSurvivors.Gameplay.Enemies
             float angle = Random.Range(0f, Mathf.PI * 2f);
             Vector2 position = new Vector2(Mathf.Cos(angle) * spawnRadius, Mathf.Sin(angle) * spawnRadiusY);
 
-            EnemyBase enemy = pool.Get();
-            enemy.transform.position = position;
+            EnemyBase enemy = GetEnemy();
+            if (enemy == null) return;
+            enemy.transform.position = TerrainGrid.Instance != null ? GetSpawnPosition() : position;
+            if (waveIndex <= 2) Debug.Log("[Spawn] " + enemy.name + " at " + enemy.transform.position);
             enemy.ApplyDifficulty(waveIndex - 1);
             alive.Add(enemy);
         }
@@ -142,7 +180,7 @@ namespace DungeonSurvivors.Gameplay.Enemies
         /// <summary>压测用：直接刷 count 个敌人（不消耗波次逻辑），返回实际数量。</summary>
         public int SpawnForStressTest(int count)
         {
-            if (pool == null) return 0;
+            if (pools.Count == 0) return 0;
 
             for (int i = 0; i < count; i++)
             {
@@ -150,8 +188,9 @@ namespace DungeonSurvivors.Gameplay.Enemies
                 float radius = Random.Range(3f, spawnRadius);
                 Vector2 position = new Vector2(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * spawnRadiusY * (radius / Mathf.Max(0.01f, spawnRadius)));
 
-                EnemyBase enemy = pool.Get();
-                enemy.transform.position = position;
+                EnemyBase enemy = GetEnemy();
+                if (enemy == null) return i;
+                enemy.transform.position = TerrainGrid.Instance != null ? GetSpawnPosition() : position;
                 enemy.ApplyDifficulty(0);
                 alive.Add(enemy);
             }
@@ -164,7 +203,15 @@ namespace DungeonSurvivors.Gameplay.Enemies
         {
             for (int i = alive.Count - 1; i >= 0; i--)
             {
-                if (alive[i] != null && pool != null) pool.Release(alive[i]);
+                if (alive[i] != null)
+                {
+                    ObjectPool<EnemyBase> owner;
+                    if (poolByInstance.TryGetValue(alive[i], out owner))
+                    {
+                        poolByInstance.Remove(alive[i]);
+                        owner.Release(alive[i]);
+                    }
+                }
             }
 
             alive.Clear();

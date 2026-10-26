@@ -17,6 +17,7 @@ namespace DungeonSurvivors.Visual
         [SerializeField] private Sprite[] sideRun;
         [SerializeField] private float framesPerSecond = 10f;
         [SerializeField] private float moveThreshold = 0.05f;
+        [SerializeField] private bool sideRowFacesRight;
 
         private Sprite[] activeFrames;
         private int frameIndex;
@@ -25,7 +26,7 @@ namespace DungeonSurvivors.Visual
 
         public void Configure(SpriteRenderer renderer, Sprite[] downIdleFrames, Sprite[] downRunFrames,
             Sprite[] upIdleFrames, Sprite[] upRunFrames, Sprite[] sideIdleFrames, Sprite[] sideRunFrames,
-            float fps = 10f)
+            float fps = 10f, bool sideFacesRight = false)
         {
             target = renderer;
             downIdle = downIdleFrames;
@@ -35,6 +36,7 @@ namespace DungeonSurvivors.Visual
             sideIdle = sideIdleFrames;
             sideRun = sideRunFrames;
             framesPerSecond = Mathf.Max(1f, fps);
+            sideRowFacesRight = sideFacesRight;
             lastPosition = transform.position;
 
             if (target != null && downIdle != null && downIdle.Length > 0)
@@ -63,8 +65,8 @@ namespace DungeonSurvivors.Visual
             if (Mathf.Abs(velocity.x) > Mathf.Abs(velocity.y))
             {
                 direction = 2;
-                // 素材 side 行默认朝左，所以向右移动时才翻转
-                flip = velocity.x > 0f;
+                // side 行朝右的素材：向左移动时翻转；朝左的素材：向右移动时翻转
+                flip = sideRowFacesRight ? velocity.x < 0f : velocity.x > 0f;
             }
             else if (velocity.y > 0f)
             {

@@ -79,10 +79,22 @@ namespace DungeonSurvivors.EditorTools
             Sprite glowSprite = CreateSprite("glow_placeholder.png", 128, GlowPixel, false);
             Sprite vignetteSprite = CreateSprite("vignette_placeholder.png", 256, VignettePixel, false);
             Sprite circleSprite = CreateSprite("circle_placeholder.png", 128, CirclePixel, false);
+            Sprite enemyArrowSprite = CreateSprite("enemy_arrow_placeholder.png", 16, EnemyArrowPixel, false);
 
-            EnemyBase enemyPrefab = CreateEnemyPrefab(slimeSprite, enemyArt);
+            CharacterArt swordsmanArt = useArt ? LoadCharacterArtFromFiles(
+                "Assets/ThirdParty/Craftpix/Classes/Swordsman/Swordsman_lvl1_Idle_without_shadow.png",
+                "Assets/ThirdParty/Craftpix/Classes/Swordsman/Swordsman_lvl1_Run_without_shadow.png") : null;
+            CharacterArt archerArt = useArt ? LoadCharacterArtFromFiles(
+                "Assets/ThirdParty/Craftpix/Classes/Archer/Archer_lvl1_Idle_without_shadow.png",
+                "Assets/ThirdParty/Craftpix/Classes/Archer/Archer_lvl1_Run_without_shadow.png") : null;
+            CharacterArt mageArt = useArt ? LoadCharacterArtFromFiles(
+                "Assets/ThirdParty/Craftpix/Classes/Mage/Mage_lvl4_Idle_full_without_shadow.png",
+                "Assets/ThirdParty/Craftpix/Classes/Mage/Mage_lvl4_Run_full_without_shadow.png") : null;
+
             Projectile projectilePrefab = CreateProjectilePrefab(projectileSprite);
             ExperienceGem gemPrefab = CreateGemPrefab(gemSprite);
+            EnemyProjectile enemyProjectilePrefab = CreateEnemyProjectilePrefab(enemyArrowSprite);
+            EnemyBase[] enemyPrefabs = CreateEnemyPrefabs(slimeSprite, enemyArt, swordsmanArt, archerArt, mageArt, enemyProjectilePrefab);
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -123,6 +135,8 @@ namespace DungeonSurvivors.EditorTools
             CreateWall("Wall_Bottom", new Vector2(0f, -ArenaHalfHeight - 0.5f), new Vector2(ArenaHalfWidth * 2f + 2f, 1f));
             CreateWall("Wall_Left", new Vector2(-ArenaHalfWidth - 0.5f, 0f), new Vector2(1f, ArenaHalfHeight * 2f + 2f));
             CreateWall("Wall_Right", new Vector2(ArenaHalfWidth + 0.5f, 0f), new Vector2(1f, ArenaHalfHeight * 2f + 2f));
+
+            TerrainBuilder.Build();
 
             // ---------- Managers ----------
             GameObject gameManagerObject = new GameObject("GameManager");
@@ -179,7 +193,7 @@ namespace DungeonSurvivors.EditorTools
             // ---------- Spawners ----------
             GameObject enemySpawnerObject = new GameObject("EnemySpawner");
             EnemySpawner enemySpawner = enemySpawnerObject.AddComponent<EnemySpawner>();
-            enemySpawner.Configure(enemyPrefab, poolRoot);
+            enemySpawner.Configure(enemyPrefabs, poolRoot);
             enemySpawner.TuneForArena(10, 4, 120, 13.5f, 0.22f, 8.2f);
 
             GameObject gemSpawnerObject = new GameObject("GemSpawner");
@@ -265,6 +279,15 @@ namespace DungeonSurvivors.EditorTools
             public SpriteSheetRows Run;
         }
 
+        private static CharacterArt LoadCharacterArtFromFiles(string idlePath, string runPath)
+        {
+            SpriteSheetRows idle = LoadSheetRowsFromFile(idlePath);
+            SpriteSheetRows run = LoadSheetRowsFromFile(runPath);
+            if (idle == null || run == null) return null;
+            if (idle.Rows.Length < 3 || run.Rows.Length < 3) return null;
+            return new CharacterArt { Idle = idle, Run = run };
+        }
+
         private static CharacterArt LoadCharacterArt(string folder, string prefix)
         {
             SpriteSheetRows idle = LoadSheetRows(folder, prefix, "Idle");
@@ -276,7 +299,11 @@ namespace DungeonSurvivors.EditorTools
 
         private static SpriteSheetRows LoadSheetRows(string folder, string prefix, string animation)
         {
-            string path = folder + "/" + prefix + "_" + animation + "_without_shadow.png";
+            return LoadSheetRowsFromFile(folder + "/" + prefix + "_" + animation + "_without_shadow.png");
+        }
+
+        private static SpriteSheetRows LoadSheetRowsFromFile(string path)
+        {
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
             Object[] assets = AssetDatabase.LoadAllAssetsAtPath(path);
             List<List<Sprite>> rows = new List<List<Sprite>>();
@@ -327,30 +354,69 @@ namespace DungeonSurvivors.EditorTools
             return false;
         }
 
-        private static EnemyBase CreateEnemyPrefab(Sprite sprite, CharacterArt art)
+        private static EnemyBase[] CreateEnemyPrefabs(Sprite fallbackSprite, CharacterArt baseArt,
+            CharacterArt swordsmanArt, CharacterArt archerArt, CharacterArt mageArt, EnemyProjectile projectilePrefab)
         {
-            GameObject go = new GameObject("Enemy_Slime");
+            List<EnemyBase> result = new List<EnemyBase>();
+            result.Add(CreateEnemyPrefab("Enemy_Swordsman", swordsmanArt, fallbackSprite, true,
+                EnemyCombatProfile.AttackType.Melee, 0.7f, 0.5f, 0.8f, 3, null, 1.7f));
+            result.Add(CreateEnemyPrefab("Enemy_Archer", archerArt, fallbackSprite, true,
+                EnemyCombatProfile.AttackType.Ranged, 6f, 3f, 1.3f, 4, projectilePrefab, 1.7f));
+            result.Add(CreateEnemyPrefab("Enemy_Mage", mageArt, fallbackSprite, true,
+                EnemyCombatProfile.AttackType.Ranged, 5f, 2.5f, 1.6f, 5, projectilePrefab, 1.7f));
+            if (result.Count == 0 || result[0] == null)
+            {
+                result.Clear();
+                result.Add(CreateEnemyPrefab("Enemy_Slime", baseArt, fallbackSprite, false,
+                    EnemyCombatProfile.AttackType.Melee, 0.7f, 0.5f, 0.8f, 3, null, 1f));
+            }
+            return result.ToArray();
+        }
+
+        private static EnemyBase CreateEnemyPrefab(string prefabName, CharacterArt art, Sprite fallbackSprite, bool sideFacesRight,
+            EnemyCombatProfile.AttackType attackType, float attackRange, float retreatDistance, float interval, int damage,
+            EnemyProjectile projectilePrefab, float scale)
+        {
+            GameObject go = new GameObject(prefabName);
             SpriteRenderer renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = sprite;
+            renderer.sprite = fallbackSprite;
             renderer.sortingOrder = 5;
 
             if (art != null)
             {
                 renderer.sprite = art.Idle.Rows[0][0];
-                go.transform.localScale = Vector3.one * 1.35f;
+                go.transform.localScale = Vector3.one * scale;
                 DirectionalSpriteAnimator animator = go.AddComponent<DirectionalSpriteAnimator>();
                 animator.Configure(renderer,
                     art.Idle.Rows[0], art.Run.Rows[0],
                     art.Idle.Rows[1], art.Run.Rows[1],
-                    art.Idle.Rows[2], art.Run.Rows[2]);
+                    art.Idle.Rows[2], art.Run.Rows[2], 10f, sideFacesRight);
             }
 
+            EnemyCombatProfile profile = go.AddComponent<EnemyCombatProfile>();
+            profile.Configure(attackType, attackRange, retreatDistance, interval, damage, projectilePrefab);
             go.AddComponent<EnemyBase>();
 
-            string prefabPath = art != null ? ArtPrefabDir + "/Enemy_Hero.prefab" : PrefabEnemyDir + "/Enemy_Slime.prefab";
+            string prefabPath = art != null
+                ? ArtPrefabDir + "/" + prefabName + ".prefab"
+                : PrefabEnemyDir + "/" + prefabName + ".prefab";
             GameObject prefab = PrefabUtility.SaveAsPrefabAsset(go, prefabPath);
             Object.DestroyImmediate(go);
             return prefab.GetComponent<EnemyBase>();
+        }
+
+        private static EnemyProjectile CreateEnemyProjectilePrefab(Sprite sprite)
+        {
+            GameObject go = new GameObject("EnemyProjectile");
+            SpriteRenderer renderer = go.AddComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.sortingOrder = 20;
+            go.transform.localScale = Vector3.one * 0.5f;
+            go.AddComponent<EnemyProjectile>();
+
+            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(go, PrefabCombatDir + "/EnemyProjectile.prefab");
+            Object.DestroyImmediate(go);
+            return prefab.GetComponent<EnemyProjectile>();
         }
 
         private static Projectile CreateProjectilePrefab(Sprite sprite)
@@ -1062,6 +1128,16 @@ namespace DungeonSurvivors.EditorTools
         private static AudioClip LoadAudioClip(string path)
         {
             return AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+        }
+
+        private static Color32 EnemyArrowPixel(int x, int y)
+        {
+            const int size = 16;
+            float dx = x - (size - 1) * 0.5f;
+            float dy = y - (size - 1) * 0.5f;
+            bool shaft = Mathf.Abs(dy) <= 1f && dx <= 3f;
+            bool head = dx > 3f && Mathf.Abs(dy) <= (7f - dx);
+            return (shaft || head) ? new Color32(255, 220, 160, 255) : new Color32(0, 0, 0, 0);
         }
 
         private static Color32 CirclePixel(int x, int y)

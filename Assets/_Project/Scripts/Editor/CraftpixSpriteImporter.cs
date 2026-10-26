@@ -23,6 +23,18 @@ namespace DungeonSurvivors.EditorTools
             if (!craftpix && !kenney) return;
 
             TextureImporter importer = (TextureImporter)assetImporter;
+            if (assetPath.Contains("/Classes/"))
+            {
+                ConfigureCharacterSheet(importer);
+                return;
+            }
+
+            if (assetPath.Contains("/GreenDungeon/") || assetPath.Contains("/MinersCave/"))
+            {
+                ConfigureTileset(importer, 32);
+                return;
+            }
+
             if (kenney)
             {
                 importer.textureType = TextureImporterType.Sprite;
@@ -51,6 +63,42 @@ namespace DungeonSurvivors.EditorTools
                 importer.alphaIsTransparency = true;
                 importer.maxTextureSize = 2048;
             }
+        }
+
+        private void ConfigureTileset(TextureImporter importer, int cell)
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Multiple;
+            importer.spritePixelsPerUnit = cell;
+            importer.filterMode = FilterMode.Point;
+            importer.textureCompression = TextureImporterCompression.Uncompressed;
+            importer.mipmapEnabled = false;
+            importer.alphaIsTransparency = true;
+            importer.maxTextureSize = 2048;
+
+            importer.GetSourceTextureWidthAndHeight(out int width, out int height);
+            if (width <= 0 || height <= 0) return;
+            int columns = width / cell;
+            int rows = height / cell;
+            if (columns <= 0 || rows <= 0) return;
+
+            string sheetName = Path.GetFileNameWithoutExtension(assetPath);
+            List<SpriteMetaData> metas = new List<SpriteMetaData>(columns * rows);
+            for (int row = 0; row < rows; row++)
+            {
+                for (int column = 0; column < columns; column++)
+                {
+                    metas.Add(new SpriteMetaData
+                    {
+                        name = sheetName + "_r" + row + "_c" + column,
+                        rect = new Rect(column * cell, height - (row + 1) * cell, cell, cell),
+                        alignment = (int)SpriteAlignment.Center,
+                        pivot = new Vector2(0.5f, 0.5f)
+                    });
+                }
+            }
+
+            importer.spritesheet = metas.ToArray();
         }
 
         private void ConfigureCharacterSheet(TextureImporter importer)
