@@ -39,8 +39,8 @@ namespace DungeonSurvivors.EditorTools
         private const string SlimeArtDir = "Assets/ThirdParty/Craftpix/Slime";
         private const string BaseMaleArtDir = "Assets/ThirdParty/Craftpix/BaseMale";
         private const string FontAssetPath = "Assets/_Project/Art/Fonts/NotoSansCJKsc-Regular.otf";
-        private const float ArenaHalfWidth = 15f;
-        private const float ArenaHalfHeight = 9f;
+        private const float ArenaHalfWidth = 24f;
+        private const float ArenaHalfHeight = 14f;
 
         [MenuItem("DungeonSurvivors/Setup Scene (W1)")]
         public static void Run()
@@ -194,7 +194,7 @@ namespace DungeonSurvivors.EditorTools
             GameObject enemySpawnerObject = new GameObject("EnemySpawner");
             EnemySpawner enemySpawner = enemySpawnerObject.AddComponent<EnemySpawner>();
             enemySpawner.Configure(enemyPrefabs, poolRoot);
-            enemySpawner.TuneForArena(10, 4, 120, 13.5f, 0.22f, 8.2f);
+            enemySpawner.TuneForArena(12, 5, 150, 18f, 0.2f, 10.5f);
 
             GameObject gemSpawnerObject = new GameObject("GemSpawner");
             GemSpawner gemSpawner = gemSpawnerObject.AddComponent<GemSpawner>();

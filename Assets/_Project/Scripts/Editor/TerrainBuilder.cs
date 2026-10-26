@@ -6,14 +6,13 @@ using UnityEngine;
 namespace DungeonSurvivors.EditorTools
 {
     /// <summary>
-    /// 用 Green Dungeon 32×32 图集搭建"伪高差"地形：草地 + 石台 + 崖壁碰撞 + 坡道开口 + 障碍物，
-    /// 并生成 TerrainGrid 供敌人流场寻路。全部由编辑器脚本生成，可重复执行。
+    /// 场景优化：只使用 Green Dungeon 32×32 一套素材，生成大场地草地 + 均匀分布的灌木/石块障碍，
+    /// 不做高低差；生成 TerrainGrid 供敌人流场寻路。
     /// </summary>
     public static class TerrainBuilder
     {
-        private const int GridWidth = 30;
-        private const int GridHeight = 18;
-        private const int CellSize = 32;
+        private const int GridWidth = 48;
+        private const int GridHeight = 28;
         private const string AtlasPath = "Assets/ThirdParty/Craftpix/GreenDungeon/green32.png";
 
         public static void Build()
@@ -26,46 +25,87 @@ namespace DungeonSurvivors.EditorTools
 
             Dictionary<string, Sprite> sprites = LoadSprites(AtlasPath);
             Sprite grass = Get(sprites, "green32_r0_c1");
-            Sprite stone = Get(sprites, "green32_r0_c0");
-            Sprite wall = Get(sprites, "green32_r7_c1");
             Sprite bush = Get(sprites, "green32_r3_c9");
-
-            if (grass == null || stone == null || wall == null)
-            {
-                Debug.LogWarning("[Terrain] Required tiles missing, skip.");
-                return;
-            }
+            Sprite flower = Get(sprites, "green32_r3_c11");
+            Sprite rock = Get(sprites, "green32_r11_c7");
+            Sprite barrel = Get(sprites, "green32_r5_c5");
+            Sprite mud = Get(sprites, "green32_r14_c7");
+            Sprite wall = Get(sprites, "green32_r7_c1");
+            Sprite grassPatch = Get(sprites, "green32_r0_c3");
+            Sprite shadow = LoadSingleSprite("Assets/_Project/Art/Placeholders/glow_placeholder.png");
+            if (grass == null) return;
 
             bool[] blocked = new bool[GridWidth * GridHeight];
             GameObject root = new GameObject("Terrain");
             Transform rootTransform = root.transform;
 
-            // 草地底
-            CreateTiled("Grass", rootTransform, grass, Vector2.zero, new Vector2(GridWidth, GridHeight), -11, Color.white);
+            CreateTiled("Grass", rootTransform, grass, Vector2.zero, new Vector2(GridWidth, GridHeight), -10, Color.white);
 
-            // 石台（cell 坐标）：A 左中，B 右下
-            BuildPlatform(rootTransform, blocked, stone, wall, new RectInt(6, 10, 8, 4), true, 9, 11);
-            BuildPlatform(rootTransform, blocked, stone, wall, new RectInt(16, 4, 9, 4), false, 19, 21);
-
-            // 障碍物（灌木/石头），带碰撞
-            Vector2Int[] props = new Vector2Int[]
+            if (wall != null)
             {
-                new Vector2Int(2, 3), new Vector2Int(27, 14), new Vector2Int(14, 2),
-                new Vector2Int(3, 16), new Vector2Int(26, 5), new Vector2Int(12, 17),
-                new Vector2Int(20, 1), new Vector2Int(1, 8),
-                new Vector2Int(4, 8), new Vector2Int(25, 10), new Vector2Int(7, 2),
-                new Vector2Int(23, 16), new Vector2Int(9, 6), new Vector2Int(18, 9),
-                new Vector2Int(13, 14), new Vector2Int(5, 12), new Vector2Int(22, 2),
-                new Vector2Int(15, 6), new Vector2Int(10, 15), new Vector2Int(27, 8)
-            };
-            foreach (Vector2Int cell in props)
-            {
-                if (blocked[cell.y * GridWidth + cell.x]) continue;
-                blocked[cell.y * GridWidth + cell.x] = true;
-                CreateProp(rootTransform, bush ?? wall, cell, -7);
+                float halfW = GridWidth * 0.5f;
+                float halfH = GridHeight * 0.5f;
+                CreateTiled("BorderTop", rootTransform, wall, new Vector2(0f, halfH - 0.5f), new Vector2(GridWidth, 1f), -8, Color.white);
+                CreateTiled("BorderBottom", rootTransform, wall, new Vector2(0f, -halfH + 0.5f), new Vector2(GridWidth, 1f), -8, Color.white);
+                CreateTiled("BorderLeft", rootTransform, wall, new Vector2(-halfW + 0.5f, 0f), new Vector2(1f, GridHeight), -8, Color.white);
+                CreateTiled("BorderRight", rootTransform, wall, new Vector2(halfW - 0.5f, 0f), new Vector2(1f, GridHeight), -8, Color.white);
             }
 
-            // 边框不可走（物理墙另有 collider）
+            if (mud != null)
+            {
+                int[,] patches = { { 7, 5 }, { 20, 8 }, { 34, 19 }, { 12, 21 }, { 40, 12 } };
+                for (int i = 0; i < patches.GetLength(0); i++)
+                {
+                    CreateTiled("Mud_" + i, rootTransform, mud,
+                        CellToWorld(patches[i, 0], patches[i, 1]), new Vector2(3f, 2f), -9, new Color(0.95f, 0.9f, 0.9f, 1f));
+                }
+            }
+
+            System.Random random = new System.Random(20261026);
+            int obstacleIndex = 0;
+            for (int gx = 3; gx < GridWidth - 2; gx += 4)
+            {
+                for (int gy = 3; gy < GridHeight - 2; gy += 4)
+                {
+                    int x = Mathf.Clamp(gx + random.Next(-2, 3), 2, GridWidth - 3);
+                    int y = Mathf.Clamp(gy + random.Next(-2, 3), 2, GridHeight - 3);
+                    Vector2 world = CellToWorld(x, y);
+                    if (Vector2.Distance(world, Vector2.zero) < 2.5f) continue;
+                    if (blocked[y * GridWidth + x]) continue;
+
+                    Sprite sprite;
+                    switch (obstacleIndex % 3)
+                    {
+                        case 0:
+                            sprite = rock ?? bush;
+                            break;
+                        case 1:
+                            sprite = barrel ?? bush;
+                            break;
+                        default:
+                            sprite = bush ?? rock;
+                            break;
+                    }
+                    if (sprite == null) sprite = bush ?? rock;
+                    if (sprite == null) continue;
+
+                    blocked[y * GridWidth + x] = true;
+                    CreateObstacle(rootTransform, sprite, x, y, obstacleIndex);
+                    obstacleIndex++;
+                }
+            }
+
+            if (flower != null)
+            {
+                for (int i = 0; i < 12; i++)
+                {
+                    int x = random.Next(2, GridWidth - 2);
+                    int y = random.Next(2, GridHeight - 2);
+                    if (blocked[y * GridWidth + x]) continue;
+                    CreateDeco(rootTransform, flower, x, y, i);
+                }
+            }
+
             for (int x = 0; x < GridWidth; x++)
             {
                 blocked[x] = true;
@@ -77,94 +117,70 @@ namespace DungeonSurvivors.EditorTools
                 blocked[y * GridWidth + GridWidth - 1] = true;
             }
 
-            GameObject oldGround = GameObject.Find("Ground");
-            if (oldGround != null)
-            {
-                SpriteRenderer oldRenderer = oldGround.GetComponent<SpriteRenderer>();
-                if (oldRenderer != null) oldRenderer.enabled = false;
-            }
-
-            string[] wallNames = { "Wall_Top", "Wall_Bottom", "Wall_Left", "Wall_Right" };
-            foreach (string wallName in wallNames)
-            {
-                GameObject wallObject = GameObject.Find(wallName);
-                if (wallObject == null) continue;
-                SpriteRenderer wallRenderer = wallObject.GetComponent<SpriteRenderer>();
-                if (wallRenderer != null) wallRenderer.enabled = false;
-            }
+            HideLegacyGround();
 
             GameObject gridObject = new GameObject("TerrainGrid");
             TerrainGrid grid = gridObject.AddComponent<TerrainGrid>();
             grid.Configure(new Vector2(-GridWidth * 0.5f, -GridHeight * 0.5f), GridWidth, GridHeight, blocked);
 
-            Debug.Log("[Terrain] Green dungeon terrain generated (" + GridWidth + "x" + GridHeight + ").");
+            Debug.Log("[Terrain] Large scene generated (" + GridWidth + "x" + GridHeight + "), obstacles=" + obstacleIndex + ".");
         }
 
-        private static void BuildPlatform(Transform parent, bool[] blocked, Sprite floor, Sprite wall,
-            RectInt cells, bool rampOnSouth, int rampStartX, int rampEndX)
+        private static void HideLegacyGround()
         {
-            int xMin = cells.xMin;
-            int yMin = cells.yMin;
-            int xMax = cells.xMax - 1;
-            int yMax = cells.yMax - 1;
-
-            float centerX = (xMin + cells.width * 0.5f) - GridWidth * 0.5f;
-            float centerY = (yMin + cells.height * 0.5f) - GridHeight * 0.5f;
-            GameObject floorObject = new GameObject("Platform_" + xMin + "_" + yMin);
-            floorObject.transform.SetParent(parent, false);
-            SpriteRenderer floorRenderer = floorObject.AddComponent<SpriteRenderer>();
-            floorRenderer.sprite = floor;
-            floorRenderer.drawMode = SpriteDrawMode.Tiled;
-            floorRenderer.size = new Vector2(cells.width, cells.height);
-            floorRenderer.sortingOrder = -9;
-            floorObject.transform.position = new Vector3(centerX, centerY, 0f);
-
-            for (int x = xMin; x <= xMax; x++)
+            GameObject oldGround = GameObject.Find("Ground");
+            if (oldGround != null)
             {
-                for (int y = yMin; y <= yMax; y++)
-                {
-                    if (x != xMin && x != xMax && y != yMin && y != yMax) continue;
-                    bool isRamp = (rampOnSouth && y == yMin) || (!rampOnSouth && y == yMax);
-                    isRamp = isRamp && x >= rampStartX && x <= rampEndX;
-                    if (isRamp)
-                    {
-                        CreateCellTile(parent, floor, x, y, -8, new Color(0.92f, 0.9f, 0.95f, 1f), false);
-                        continue;
-                    }
+                SpriteRenderer renderer = oldGround.GetComponent<SpriteRenderer>();
+                if (renderer != null) renderer.enabled = false;
+            }
 
-                    blocked[y * GridWidth + x] = true;
-                    CreateCellTile(parent, wall, x, y, -8, Color.white, true);
-                }
+            string[] wallNames = { "Wall_Top", "Wall_Bottom", "Wall_Left", "Wall_Right" };
+            foreach (string wallName in wallNames)
+            {
+                GameObject wall = GameObject.Find(wallName);
+                if (wall == null) continue;
+                SpriteRenderer renderer = wall.GetComponent<SpriteRenderer>();
+                if (renderer != null) renderer.enabled = false;
             }
         }
 
-        private static void CreateCellTile(Transform parent, Sprite sprite, int x, int y, int sortingOrder, Color color, bool collider)
+        private static void CreateObstacle(Transform parent, Sprite sprite, int x, int y, int index)
         {
-            GameObject tile = new GameObject("Tile_" + x + "_" + y);
-            tile.transform.SetParent(parent, false);
-            tile.transform.position = CellToWorld(x, y);
-            SpriteRenderer renderer = tile.AddComponent<SpriteRenderer>();
+            GameObject go = new GameObject("Obstacle_" + index);
+            go.transform.SetParent(parent, false);
+            go.transform.position = CellToWorld(x, y);
+            go.transform.localScale = Vector3.one * 1.5f;
+            SpriteRenderer renderer = go.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite;
-            renderer.color = color;
-            renderer.sortingOrder = sortingOrder;
+            renderer.sortingOrder = -7;
+            renderer.color = index % 3 == 0 ? new Color(0.8f, 0.8f, 0.95f, 1f) : new Color(0.78f, 0.92f, 0.75f, 1f);
 
-            if (collider)
+            Sprite shadow = LoadSingleSprite("Assets/_Project/Art/Placeholders/glow_placeholder.png");
+            if (shadow != null)
             {
-                BoxCollider2D box = tile.AddComponent<BoxCollider2D>();
-                box.size = new Vector2(0.96f, 0.96f);
+                GameObject shadowObject = new GameObject("Shadow");
+                shadowObject.transform.SetParent(go.transform, false);
+                shadowObject.transform.localPosition = new Vector3(0f, -0.35f, 0f);
+                shadowObject.transform.localScale = new Vector3(1.1f, 0.5f, 1f);
+                SpriteRenderer shadowRenderer = shadowObject.AddComponent<SpriteRenderer>();
+                shadowRenderer.sprite = shadow;
+                shadowRenderer.color = new Color(0f, 0f, 0f, 0.42f);
+                shadowRenderer.sortingOrder = -8;
             }
-        }
 
-        private static void CreateProp(Transform parent, Sprite sprite, Vector2Int cell, int sortingOrder)
-        {
-            GameObject prop = new GameObject("Prop_" + cell.x + "_" + cell.y);
-            prop.transform.SetParent(parent, false);
-            prop.transform.position = CellToWorld(cell.x, cell.y);
-            SpriteRenderer renderer = prop.AddComponent<SpriteRenderer>();
-            renderer.sprite = sprite;
-            renderer.sortingOrder = sortingOrder;
-            BoxCollider2D box = prop.AddComponent<BoxCollider2D>();
+            BoxCollider2D box = go.AddComponent<BoxCollider2D>();
             box.size = new Vector2(0.8f, 0.8f);
+        }
+
+        private static void CreateDeco(Transform parent, Sprite sprite, int x, int y, int index)
+        {
+            GameObject go = new GameObject("Deco_" + index);
+            go.transform.SetParent(parent, false);
+            go.transform.position = CellToWorld(x, y);
+            SpriteRenderer renderer = go.AddComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.sortingOrder = -8;
         }
 
         private static void CreateTiled(string name, Transform parent, Sprite sprite, Vector2 position, Vector2 size, int sortingOrder, Color color)
@@ -182,9 +198,12 @@ namespace DungeonSurvivors.EditorTools
 
         private static Vector2 CellToWorld(int x, int y)
         {
-            return new Vector2(
-                x - GridWidth * 0.5f + 0.5f,
-                y - GridHeight * 0.5f + 0.5f);
+            return new Vector2(x - GridWidth * 0.5f + 0.5f, y - GridHeight * 0.5f + 0.5f);
+        }
+
+        private static Sprite LoadSingleSprite(string path)
+        {
+            return AssetDatabase.LoadAssetAtPath<Sprite>(path);
         }
 
         private static Dictionary<string, Sprite> LoadSprites(string path)
