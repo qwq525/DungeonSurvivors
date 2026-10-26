@@ -18,9 +18,24 @@ namespace DungeonSurvivors.EditorTools
 
         private void OnPreprocessTexture()
         {
-            if (!assetPath.StartsWith(Root)) return;
+            bool craftpix = assetPath.StartsWith("Assets/ThirdParty/Craftpix/");
+            bool kenney = assetPath.StartsWith("Assets/ThirdParty/Kenney/");
+            if (!craftpix && !kenney) return;
 
             TextureImporter importer = (TextureImporter)assetImporter;
+            if (kenney)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spriteImportMode = SpriteImportMode.Single;
+                importer.spritePixelsPerUnit = 16f;
+                importer.filterMode = FilterMode.Point;
+                importer.textureCompression = TextureImporterCompression.Uncompressed;
+                importer.mipmapEnabled = false;
+                importer.alphaIsTransparency = true;
+                importer.maxTextureSize = 2048;
+                return;
+            }
+
             if (assetPath.Contains("/Slime/") || assetPath.Contains("/BaseMale/"))
             {
                 ConfigureCharacterSheet(importer);

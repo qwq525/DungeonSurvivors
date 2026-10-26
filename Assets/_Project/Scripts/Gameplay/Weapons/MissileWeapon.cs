@@ -68,6 +68,7 @@ namespace DungeonSurvivors.Gameplay.Weapons
             Projectile projectile = pool.Get();
             projectile.transform.position = transform.position;
             projectile.Initialize(target, damage, ReleaseProjectile);
+            EventBus.Publish(new WeaponFiredEvent());
         }
 
         private EnemyBase FindNearestEnemy()

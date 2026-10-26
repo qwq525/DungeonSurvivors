@@ -19,6 +19,10 @@
 - 计划接入（已下载）：
   - Kenney（CC0）：tiny dungeon、impact sounds、rpg audio
   - Craftpix Warrior 4 Direction（Boss 候选）
+- **当前已实际接入（本地美术版，不随公开仓库分发）**：
+  - Craftpix Slime / Base Male 4-direction（角色 + 四方向动画）
+  - Kenney tiny-dungeon（地板 `tile_0049`、砖墙 `tile_0059`，CC0）
+  - Kenney impact-sounds / rpg-audio（打击、死亡、受伤、升级、拾取、射击音效，CC0）
 - 字体：得意黑 Smiley Sans（SIL OFL 1.1）、MiSans（小米免费商用）、Noto Sans CJK（SIL OFL 1.1，当前 UI 使用）
 
 ## 音频（计划）

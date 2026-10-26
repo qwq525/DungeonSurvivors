@@ -29,7 +29,7 @@ namespace DungeonSurvivors.Gameplay.Enemies
         [Header("属性")]
         [SerializeField] private float moveSpeed = 2.2f;
         [SerializeField] private int maxHealth = 10;
-        [SerializeField] private int contactDamage = 1;
+        [SerializeField] private int contactDamage = 3;
         [SerializeField] private float contactRadius = 0.55f;
         [SerializeField] private float attackInterval = 0.8f;
         [SerializeField] private int xpValue = 1;
@@ -145,6 +145,7 @@ namespace DungeonSurvivors.Gameplay.Enemies
                     if (distance <= contactRadius)
                     {
                         state = State.Attack;
+                        Debug.Log("[Enemy] Attack start, distance=" + distance.ToString("F2") + " radius=" + contactRadius.ToString("F2") + " dmg=" + contactDamage);
                         break;
                     }
                     MoveTowards(toPlayer.normalized);

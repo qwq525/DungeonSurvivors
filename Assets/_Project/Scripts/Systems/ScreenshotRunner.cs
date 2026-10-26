@@ -18,6 +18,11 @@ namespace DungeonSurvivors.Systems
 
             if (menuShot) StartCoroutine(Capture("screenshot_menu.png", 2.5f));
             else if (gameplayShot) StartCoroutine(Capture("screenshot_gameplay.png", 6f));
+            else
+            {
+                float timedDelay = GetFloatFlag(args, "-screenshotAt", 0f);
+                if (timedDelay > 0f) StartCoroutine(Capture("screenshot_timed.png", timedDelay));
+            }
         }
 
         private IEnumerator Capture(string fileName, float delay)
@@ -30,6 +35,17 @@ namespace DungeonSurvivors.Systems
 
             yield return new WaitForSecondsRealtime(0.6f);
             Application.Quit();
+        }
+
+        private static float GetFloatFlag(string[] args, string flag, float fallback)
+        {
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                if (string.Equals(args[i], flag, System.StringComparison.OrdinalIgnoreCase) &&
+                    float.TryParse(args[i + 1], out float value)) return value;
+            }
+
+            return fallback;
         }
 
         private static bool HasFlag(string[] args, string flag)

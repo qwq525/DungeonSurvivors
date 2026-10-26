@@ -28,6 +28,10 @@ namespace DungeonSurvivors.Core
         }
     }
 
+    public readonly struct WeaponFiredEvent
+    {
+    }
+
     public readonly struct PlayerDamagedEvent
     {
         public readonly int Amount;

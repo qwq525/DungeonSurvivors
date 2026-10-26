@@ -99,7 +99,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 2.2
   maxHealth: 10
-  contactDamage: 1
+  contactDamage: 3
   contactRadius: 0.55
   attackInterval: 0.8
   xpValue: 1

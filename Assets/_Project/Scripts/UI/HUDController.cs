@@ -21,6 +21,7 @@ namespace DungeonSurvivors.UI
         [SerializeField] private Text killsText;
         [SerializeField] private Text waveText;
         [SerializeField] private GameObject hudGroup;
+        [SerializeField] private Text healthText;
 
         private PlayerHealth playerHealth;
         private PlayerExperience playerExperience;
@@ -29,7 +30,7 @@ namespace DungeonSurvivors.UI
         private bool bound;
 
         public void Configure(Image healthFillImage, Image xpFillImage, Text levelLabel, Text timerLabel,
-            Text killsLabel, Text waveLabel, GameObject group)
+            Text killsLabel, Text waveLabel, GameObject group, Text healthLabel)
         {
             healthFill = healthFillImage;
             xpFill = xpFillImage;
@@ -38,6 +39,7 @@ namespace DungeonSurvivors.UI
             killsText = killsLabel;
             waveText = waveLabel;
             hudGroup = group;
+            healthText = healthLabel;
         }
 
         private void Update()
@@ -61,6 +63,7 @@ namespace DungeonSurvivors.UI
             }
 
             if (healthFill != null) healthFill.fillAmount = playerHealth.Normalized;
+            if (healthText != null) healthText.text = Mathf.CeilToInt(playerHealth.CurrentHealth) + " / " + playerHealth.MaxHealth;
             if (xpFill != null) xpFill.fillAmount = playerExperience.NormalizedProgress;
             if (levelText != null) levelText.text = "等级 " + playerExperience.Level;
             if (timerText != null) timerText.text = FormatTime(runTime);
@@ -77,6 +80,7 @@ namespace DungeonSurvivors.UI
             playerExperience = player.GetComponent<PlayerExperience>();
             enemySpawner = Object.FindFirstObjectByType<EnemySpawner>();
             bound = playerHealth != null && playerExperience != null;
+            if (bound) Debug.Log("[HUD] Bound player, maxHealth=" + playerHealth.MaxHealth);
         }
 
         private static string FormatTime(float seconds)

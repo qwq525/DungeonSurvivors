@@ -72,6 +72,7 @@ namespace DungeonSurvivors.EditorTools
 
             Sprite playerSprite = CreateSprite("player_placeholder.png", 32, PlayerPixel, false);
             Sprite groundSprite = CreateSprite("ground_placeholder.png", 32, GroundPixel, true);
+            Sprite floorSprite = LoadExternalSprite("Assets/ThirdParty/Kenney/Dungeon/floor_tile.png");
             Sprite slimeSprite = CreateSprite("slime_placeholder.png", 32, SlimePixel, false);
             Sprite projectileSprite = CreateSprite("projectile_placeholder.png", 16, ProjectilePixel, false);
             Sprite gemSprite = CreateSprite("gem_placeholder.png", 16, GemPixel, false);
@@ -105,7 +106,8 @@ namespace DungeonSurvivors.EditorTools
             // ---------- Ground & Walls ----------
             GameObject groundObject = new GameObject("Ground");
             SpriteRenderer groundRenderer = groundObject.AddComponent<SpriteRenderer>();
-            groundRenderer.sprite = groundSprite;
+            groundRenderer.sprite = floorSprite != null ? floorSprite : groundSprite;
+            groundRenderer.color = floorSprite != null ? new Color(0.46f, 0.42f, 0.48f, 1f) : Color.white;
             groundRenderer.drawMode = SpriteDrawMode.Tiled;
             groundRenderer.size = new Vector2(ArenaHalfWidth * 2f, ArenaHalfHeight * 2f);
             groundRenderer.sortingOrder = -10;
@@ -224,6 +226,16 @@ namespace DungeonSurvivors.EditorTools
             StressTestRunner stressTest = gameFlowObject.AddComponent<StressTestRunner>();
             stressTest.Configure(enemySpawner, playerHealth, weapon);
             gameFlowObject.AddComponent<ScreenshotRunner>();
+
+            GameObject audioObject = new GameObject("AudioService");
+            AudioService audioService = audioObject.AddComponent<AudioService>();
+            audioService.Configure(
+                LoadAudioClip("Assets/ThirdParty/Kenney/Audio/shoot.ogg"),
+                LoadAudioClip("Assets/ThirdParty/Kenney/Audio/hit.ogg"),
+                LoadAudioClip("Assets/ThirdParty/Kenney/Audio/death.ogg"),
+                LoadAudioClip("Assets/ThirdParty/Kenney/Audio/hurt.ogg"),
+                LoadAudioClip("Assets/ThirdParty/Kenney/Audio/levelup.ogg"),
+                LoadAudioClip("Assets/ThirdParty/Kenney/Audio/pickup.ogg"));
 
             // ---------- Save ----------
             EditorSceneManager.SaveScene(scene, scenePath);
@@ -393,6 +405,9 @@ namespace DungeonSurvivors.EditorTools
             healthFill.fillOrigin = 0;
             healthFill.fillAmount = 1f;
 
+            Text healthText = CreateText("HealthText", healthBackground.transform, "100 / 100", 18, new Color32(255, 246, 224, 255), TextAnchor.MiddleCenter);
+            SetRect(healthText.rectTransform, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+
             // 等级
             Text levelText = CreateText("LevelText", hudRoot, "等级 1", 26, new Color32(255, 246, 224, 255), TextAnchor.MiddleLeft);
             SetRect(levelText.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
@@ -425,7 +440,7 @@ namespace DungeonSurvivors.EditorTools
             SetRect(waveText.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                 new Vector2(0f, -66f), new Vector2(220f, 30f));
 
-            hud.Configure(healthFill, xpFill, levelText, timerText, killsText, waveText, hudGroup);
+            hud.Configure(healthFill, xpFill, levelText, timerText, killsText, waveText, hudGroup, healthText);
             return canvas;
         }
 
@@ -885,6 +900,17 @@ namespace DungeonSurvivors.EditorTools
             wall.transform.position = position;
             BoxCollider2D box = wall.AddComponent<BoxCollider2D>();
             box.size = size;
+
+            Sprite wallSprite = LoadExternalSprite("Assets/ThirdParty/Kenney/Dungeon/wall_tile.png");
+            if (wallSprite != null)
+            {
+                SpriteRenderer renderer = wall.AddComponent<SpriteRenderer>();
+                renderer.sprite = wallSprite;
+                renderer.drawMode = SpriteDrawMode.Tiled;
+                renderer.size = size;
+                renderer.sortingOrder = -8;
+                renderer.color = new Color(0.55f, 0.5f, 0.58f, 1f);
+            }
         }
 
         private static void EnsureFolder(string path)
@@ -930,6 +956,16 @@ namespace DungeonSurvivors.EditorTools
             importer.SaveAndReimport();
 
             return AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+        }
+
+        private static Sprite LoadExternalSprite(string path)
+        {
+            return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        }
+
+        private static AudioClip LoadAudioClip(string path)
+        {
+            return AssetDatabase.LoadAssetAtPath<AudioClip>(path);
         }
 
         private static Color32 GlowPixel(int x, int y)

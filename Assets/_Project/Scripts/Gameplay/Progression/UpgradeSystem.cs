@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using DungeonSurvivors.Core;
 using DungeonSurvivors.Gameplay.Player;
@@ -23,6 +24,8 @@ namespace DungeonSurvivors.Gameplay.Progression
 
         private PlayerController controller;
         private bool choosing;
+        private bool autoUpgrade;
+        private List<UpgradeOption> pendingOptions;
 
         public void Configure(UpgradePanel upgradePanel, MissileWeapon missileWeapon, PlayerHealth health, OrbitWeapon orbit)
         {
@@ -38,6 +41,18 @@ namespace DungeonSurvivors.Gameplay.Progression
             if (weapon == null) weapon = GetComponent<MissileWeapon>();
             if (orbitWeapon == null) orbitWeapon = GetComponent<OrbitWeapon>();
             if (playerHealth == null) playerHealth = GetComponent<PlayerHealth>();
+            autoUpgrade = HasCommandLineFlag("-autoUpgrade");
+        }
+
+        private static bool HasCommandLineFlag(string flag)
+        {
+            string[] args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (string.Equals(args[i], flag, System.StringComparison.OrdinalIgnoreCase)) return true;
+            }
+
+            return false;
         }
 
         private void OnEnable()
@@ -61,7 +76,19 @@ namespace DungeonSurvivors.Gameplay.Progression
 
             choosing = true;
             Time.timeScale = 0f;
-            panel.Show(BuildOptions(), OnOptionChosen);
+            pendingOptions = BuildOptions();
+            panel.Show(pendingOptions, OnOptionChosen);
+
+            if (autoUpgrade) StartCoroutine(AutoPickFirstOption());
+        }
+
+        private IEnumerator AutoPickFirstOption()
+        {
+            yield return new WaitForSecondsRealtime(0.6f);
+            if (choosing && pendingOptions != null && pendingOptions.Count > 0)
+            {
+                OnOptionChosen(pendingOptions[0]);
+            }
         }
 
         private void OnOptionChosen(UpgradeOption option)

@@ -86,6 +86,7 @@ namespace DungeonSurvivors.Gameplay.Player
 
             health -= Mathf.Max(0, evt.Amount);
             invulnerableTimer = invulnerableAfterHit;
+            Debug.Log("[PlayerHealth] Damaged " + Mathf.Max(0, evt.Amount) + " -> " + health + "/" + maxHealth);
 
             if (health <= 0)
             {
