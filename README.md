@@ -14,11 +14,11 @@
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | **v0.2 稳定预览版**（玩法闭环完成；本地美术版：史莱姆主角 + 勇者敌人 + 四方向帧动画 + 中文 UI） |
+| 阶段 | **v0.2.1 稳定预览版**（修复 UI 点击：补 EventSystem；玩法闭环 + 本地美术版：史莱姆主角 + 勇者敌人 + 四方向帧动画 + 中文 UI） |
 | 引擎 | **Unity 2022.3.62f3c1** + C#（Built-in 2D 渲染管线） |
 | 平台 | Windows PC（架构预留移动端/小游戏） |
 | 单局时长 | 8–12 分钟 |
-| 可玩构建 | `Builds/Windows/DungeonSurvivors.exe`（美术版）；稳定版备份 `Builds/Stable_v0.2/` |
+| 可玩构建 | `Builds/Windows/DungeonSurvivors.exe`（美术版）；稳定版备份 `Builds/Stable_v0.2.1/` |
 
 ## 二、已实现功能
 

@@ -97,6 +97,11 @@ namespace DungeonSurvivors.EditorTools
             cameraObject.transform.position = new Vector3(0f, 0f, -10f);
             cameraObject.AddComponent<AudioListener>();
 
+            // ---------- EventSystem（UGUI 鼠标/键盘事件必需，之前漏了导致按钮点不动） ----------
+            GameObject eventSystemObject = new GameObject("EventSystem");
+            eventSystemObject.AddComponent<UnityEngine.EventSystems.EventSystem>();
+            eventSystemObject.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+
             // ---------- Ground & Walls ----------
             GameObject groundObject = new GameObject("Ground");
             SpriteRenderer groundRenderer = groundObject.AddComponent<SpriteRenderer>();
