@@ -18,6 +18,7 @@ namespace DungeonSurvivors.EditorTools
         private const string BuildDir = "Builds/Windows";
         private const string ExeName = "DungeonSurvivors.exe";
         private const string ScenePath = "Assets/_Project/Scenes/Main.unity";
+        private const string ArtScenePath = "Assets/_Project/Scenes/MainArt.unity";
 
         [MenuItem("DungeonSurvivors/Build Windows x64")]
         public static void BuildWindows()
@@ -26,11 +27,14 @@ namespace DungeonSurvivors.EditorTools
 
             PlayerSettings.companyName = "DungeonSurvivors";
             PlayerSettings.productName = "Dungeon Survivors";
-            PlayerSettings.bundleVersion = "0.1.0";
+            PlayerSettings.bundleVersion = "0.2.0";
+
+            string scenePath = File.Exists(ArtScenePath) ? ArtScenePath : ScenePath;
+            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(scenePath, true) };
 
             BuildPlayerOptions options = new BuildPlayerOptions
             {
-                scenes = new[] { ScenePath },
+                scenes = new[] { scenePath },
                 locationPathName = Path.Combine(BuildDir, ExeName),
                 target = BuildTarget.StandaloneWindows64,
                 options = BuildOptions.None

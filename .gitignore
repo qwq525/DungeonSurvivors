@@ -50,3 +50,11 @@ Thumbs.db
 # Logs / local
 Logs/
 *.log
+
+# Third-party art (Craftpix/Kenney licenses: do not redistribute source files)
+Assets/ThirdParty/
+# Local real-art scene / prefabs (generated with -art)
+Assets/_Project/Art/Real/
+Assets/_Project/Scenes/MainArt.unity
+Assets/_Project/Scenes/MainArt.unity.meta
+Assets/_Project/Art/Real.meta

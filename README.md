@@ -3,7 +3,10 @@
 > **2D 俯视角割草 Roguelite · 个人求职作品集项目**
 > 你是地牢里最后一只幸存的怪物。一波波"勇者"下来刷装备，你要在越来越强的怪潮里活下来，杀掉他们、夺走他们的武器和变异，变成更强的怪物。
 
-> 截图/GIF 待补充（占位素材阶段，正式素材替换后录制）
+> 截图（角色/动画已换正式像素素材；仓库默认使用占位图，完整美术版见本地 `Builds/Stable_v0.2`）：
+>
+> ![主菜单](Docs/screenshots/menu.png)
+> ![战斗](Docs/screenshots/gameplay.png)
 
 ---
 
@@ -11,11 +14,11 @@
 
 | 项 | 状态 |
 |---|---|
-| 阶段 | W2 开发中（核心玩法闭环 + 局外成长/商业化/数据 Mock 已完成） |
+| 阶段 | **v0.2 稳定预览版**（玩法闭环完成；本地美术版：史莱姆主角 + 勇者敌人 + 四方向帧动画 + 中文 UI） |
 | 引擎 | **Unity 2022.3.62f3c1** + C#（Built-in 2D 渲染管线） |
 | 平台 | Windows PC（架构预留移动端/小游戏） |
 | 单局时长 | 8–12 分钟 |
-| 可玩构建 | `Builds/Windows/DungeonSurvivors.exe` |
+| 可玩构建 | `Builds/Windows/DungeonSurvivors.exe`（美术版）；稳定版备份 `Builds/Stable_v0.2/` |
 
 ## 二、已实现功能
 
@@ -33,14 +36,15 @@
 - 胜利条件：击败**第 10 波 Boss** → `VICTORY`（灵魂 ×2）；死亡 → `RUN OVER`
 
 **完整游戏壳**
-- 主菜单（START / DAILY CHALLENGE / ACHIEVEMENTS / TALENTS / SETTINGS / QUIT）
+- 主菜单 7 项：开始游戏 / 每日挑战 / 图鉴 / 成就 / 天赋 / 设置 / 退出
 - 每日挑战：按日期固定词缀（敌人移速 +25%、灵魂收益 +50%），HUD 显示 `DAILY`
-- 图鉴：武器 / 敌人（普通/精英/Boss）/ 变异三类收集，主菜单 CODEX 查看
-- 成就系统：6 个成就（首杀/单局 50 杀/5 级/首次死亡/广告复活/首个天赋），主菜单可查看
+- 图鉴：武器 / 敌人（普通/精英/Boss）/ 变异三类收集，主菜单查看
+- 成就系统：6 个成就（首杀/单局 50 杀/5 级/首次死亡/广告复活/首个天赋）
 - 新手引导：首次进入显示操作说明（WASD/空格/自动攻击/ESC/F1）
 - 天赋树：4 个局外天赋（伤害/血量/移速/攻速），灵魂货币升级，开局生效
 - 设置：音量 5 档 + 全屏开关（持久化）
 - 存档：JSON + 版本号 + 迁移入口 + 损坏兜底
+- 中文 UI：内置 Noto Sans CJK 字体（OFL 授权）
 
 **小游戏商业化（Mock）**
 - `IAdService` 接口 + `MockAdService`（3 秒假广告面板）
@@ -92,11 +96,13 @@ Assets/_Project/
       Waves/       （并入 EnemySpawner）
     Commerce/      IAdService, MockAdService
     Analytics/     AnalyticsService
-    UI/            HUD, MainMenu, TalentPanel, SettingsPanel, UpgradePanel,
+    UI/            HUD, MainMenu, TalentPanel, SettingsPanel, UpgradePanel, CodexPanel,
                    ResultPanel, PausePanel, AdMockPanel, DamageNumberSpawner, DevDataPanel
+    Visual/        DirectionalSpriteAnimator（四方向帧动画）
     Systems/       CameraFollow, CombatFeedback, GameFlowController, RunStats,
-                   TalentCatalog, TalentEffects
-    Editor/        Day0SceneSetup（一键场景）, BuildScript（一键打包）
+                   TalentCatalog, TalentEffects, Achievement/Codex/DailyChallenge
+    Editor/        Day0SceneSetup（一键场景/美术场景）, BuildScript（一键打包）,
+                   CraftpixSpriteImporter（素材导入规则）
   Prefabs/  Config/  Art/  Audio/  Scenes/  Settings/
 Assets/ThirdParty/  免费/购买素材（保留 LICENSE，不提交公开仓库）
 ```
@@ -149,12 +155,35 @@ Unity.exe -batchmode -quit -projectPath "<project>" `
 
 开发/录制辅助参数：`-autoStart` 跳过主菜单直接开局；`-stressTest -stressEnemies N -stressDuration S` 自动压测并输出 CSV。
 
+### 本地美术版（Craftpix / Kenney 素材）
+
+- 第三方素材放在 `Assets/ThirdParty/`（已在 `.gitignore`，不随公开仓库分发，遵循授权条款）
+- 一键生成**美术场景**（会生成 `MainArt.unity` + 美术 Prefab，均不提交仓库）：
+
+```powershell
+Unity.exe -batchmode -quit -projectPath "<project>" `
+  -executeMethod DungeonSurvivors.EditorTools.Day0SceneSetup.Run -art -logFile "Logs/setup_art.log"
+```
+
+- `BuildScript` 会自动检测 `MainArt.unity`：存在则构建美术版，否则构建占位版（保证 clone 后仍可玩）
+- 导入规则由 `CraftpixSpriteImporter`（AssetPostprocessor）自动配置：64×64 网格切片、Point 采样、无压缩
+- 角色动画由 `DirectionalSpriteAnimator` 播放：按位移判断朝向/移动，四方向 Idle/Run
+
+## 七点五、已知限制（v0.2 稳定版）
+
+- 地面/围墙/UI 仍是程序生成占位（地牢 Tileset、像素 UI 已下载，待接入）
+- 暂无音效（Kenney impact / rpg audio 已下载，待接入）
+- 攻击/死亡特效仍是闪白 + 伤害数字（爆炸/魔法序列帧待接入）
+- Boss 暂用放大染色的勇者精灵（Warrior 4 方向 Boss 待接入）
+- 内容量：1 张地图、2 把武器、1 种敌人（普通/精英/Boss 三档）、4 天赋、6 成就、11 图鉴项
+- 性能数据基于占位版；美术版接入完成后需复测
+
 ## 八、素材与授权
 
-- 当前为程序生成占位像素图（可自由使用）
-- 正式素材计划：Craftpix（免费包）+ Kenney（CC0），授权文件随项目保留
-- **公开仓库不提交第三方付费/免费素材源文件**（遵循各平台"禁止再分发"条款）
-- 音效/字体授权记录待替换素材时补充
+- 当前公开仓库内为程序生成占位像素图（可自由使用）
+- 本地美术版使用 Craftpix 免费包（Slime / Base Male 4-direction）+ Kenney 素材，授权文件随素材保留
+- **公开仓库不提交第三方付费/免费素材源文件**（遵循各平台"禁止再分发"条款）；`Docs/screenshots` 为本地美术版截图
+- 字体：Noto Sans CJK（SIL OFL 1.1），随仓库提供
 
 ## 九、文档
 

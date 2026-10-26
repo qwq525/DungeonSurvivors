@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using DungeonSurvivors.Commerce;
 using DungeonSurvivors.Core;
@@ -7,6 +8,7 @@ using DungeonSurvivors.Gameplay.Progression;
 using DungeonSurvivors.Gameplay.Weapons;
 using DungeonSurvivors.Systems;
 using DungeonSurvivors.UI;
+using DungeonSurvivors.Visual;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -32,6 +34,10 @@ namespace DungeonSurvivors.EditorTools
         private const string PrefabCombatDir = "Assets/_Project/Prefabs/Combat";
         private const string PrefabProgressionDir = "Assets/_Project/Prefabs/Progression";
         private const string ScenePath = "Assets/_Project/Scenes/Main.unity";
+        private const string ArtScenePath = "Assets/_Project/Scenes/MainArt.unity";
+        private const string ArtPrefabDir = "Assets/_Project/Art/Real/Prefabs";
+        private const string SlimeArtDir = "Assets/ThirdParty/Craftpix/Slime";
+        private const string BaseMaleArtDir = "Assets/ThirdParty/Craftpix/BaseMale";
         private const string FontAssetPath = "Assets/_Project/Art/Fonts/NotoSansCJKsc-Regular.otf";
         private const float ArenaHalfWidth = 10f;
         private const float ArenaHalfHeight = 6f;
@@ -46,6 +52,24 @@ namespace DungeonSurvivors.EditorTools
             EnsureFolder("Assets/_Project/Scenes");
             EnsureFolder("Assets/_Project/Prefabs");
 
+            bool useArt = HasCommandLineFlag("-art")
+                          && AssetDatabase.IsValidFolder(SlimeArtDir)
+                          && AssetDatabase.IsValidFolder(BaseMaleArtDir);
+            string scenePath = useArt ? ArtScenePath : ScenePath;
+            CharacterArt playerArt = useArt ? LoadCharacterArt(SlimeArtDir, "Slime1") : null;
+            CharacterArt enemyArt = useArt ? LoadCharacterArt(BaseMaleArtDir, "Unarmed") : null;
+            if (useArt && (playerArt == null || enemyArt == null))
+            {
+                Debug.LogWarning("[W1Setup] Art sheets could not be loaded; falling back to placeholders.");
+                useArt = false;
+                scenePath = ScenePath;
+            }
+            if (useArt)
+            {
+                EnsureFolder("Assets/_Project/Art/Real");
+                EnsureFolder(ArtPrefabDir);
+            }
+
             Sprite playerSprite = CreateSprite("player_placeholder.png", 32, PlayerPixel, false);
             Sprite groundSprite = CreateSprite("ground_placeholder.png", 32, GroundPixel, true);
             Sprite slimeSprite = CreateSprite("slime_placeholder.png", 32, SlimePixel, false);
@@ -54,7 +78,7 @@ namespace DungeonSurvivors.EditorTools
             Sprite glowSprite = CreateSprite("glow_placeholder.png", 128, GlowPixel, false);
             Sprite vignetteSprite = CreateSprite("vignette_placeholder.png", 256, VignettePixel, false);
 
-            EnemyBase enemyPrefab = CreateEnemyPrefab(slimeSprite);
+            EnemyBase enemyPrefab = CreateEnemyPrefab(slimeSprite, enemyArt);
             Projectile projectilePrefab = CreateProjectilePrefab(projectileSprite);
             ExperienceGem gemPrefab = CreateGemPrefab(gemSprite);
 
@@ -65,7 +89,7 @@ namespace DungeonSurvivors.EditorTools
             cameraObject.tag = "MainCamera";
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.orthographic = true;
-            camera.orthographicSize = 5f;
+            camera.orthographicSize = 4.2f;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color32(11, 10, 18, 255); // #0B0A12
             camera.nearClipPlane = 0.1f;
@@ -104,6 +128,17 @@ namespace DungeonSurvivors.EditorTools
             SpriteRenderer playerRenderer = playerObject.AddComponent<SpriteRenderer>();
             playerRenderer.sprite = playerSprite;
             playerRenderer.sortingOrder = 10;
+
+            if (playerArt != null)
+            {
+                playerRenderer.sprite = playerArt.Idle.Rows[0][0];
+                playerObject.transform.localScale = Vector3.one * 1.6f;
+                DirectionalSpriteAnimator playerAnimator = playerObject.AddComponent<DirectionalSpriteAnimator>();
+                playerAnimator.Configure(playerRenderer,
+                    playerArt.Idle.Rows[0], playerArt.Run.Rows[0],
+                    playerArt.Idle.Rows[1], playerArt.Run.Rows[1],
+                    playerArt.Idle.Rows[2], playerArt.Run.Rows[2]);
+            }
 
             Rigidbody2D body = playerObject.AddComponent<Rigidbody2D>();
             body.gravityScale = 0f;
@@ -186,25 +221,111 @@ namespace DungeonSurvivors.EditorTools
             gameFlowObject.AddComponent<ScreenshotRunner>();
 
             // ---------- Save ----------
-            EditorSceneManager.SaveScene(scene, ScenePath);
+            EditorSceneManager.SaveScene(scene, scenePath);
             EditorBuildSettings.scenes = new[]
             {
-                new EditorBuildSettingsScene(ScenePath, true)
+                new EditorBuildSettingsScene(scenePath, true)
             };
             AssetDatabase.SaveAssets();
 
-            Debug.Log("[W1Setup] Main scene generated: Player(Move+Dash+Weapon+Health+XP), EnemySpawner, GemSpawner, placeholder prefabs.");
+            Debug.Log("[W1Setup] Scene generated: " + scenePath + " (art=" + useArt + ")");
         }
 
-        private static EnemyBase CreateEnemyPrefab(Sprite sprite)
+        private class SpriteSheetRows
+        {
+            public Sprite[][] Rows;
+        }
+
+        private class CharacterArt
+        {
+            public SpriteSheetRows Idle;
+            public SpriteSheetRows Run;
+        }
+
+        private static CharacterArt LoadCharacterArt(string folder, string prefix)
+        {
+            SpriteSheetRows idle = LoadSheetRows(folder, prefix, "Idle");
+            SpriteSheetRows run = LoadSheetRows(folder, prefix, "Run");
+            if (idle == null || run == null) return null;
+            if (idle.Rows.Length < 3 || run.Rows.Length < 3) return null;
+            return new CharacterArt { Idle = idle, Run = run };
+        }
+
+        private static SpriteSheetRows LoadSheetRows(string folder, string prefix, string animation)
+        {
+            string path = folder + "/" + prefix + "_" + animation + "_without_shadow.png";
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            Object[] assets = AssetDatabase.LoadAllAssetsAtPath(path);
+            List<List<Sprite>> rows = new List<List<Sprite>>();
+            for (int i = 0; i < 4; i++) rows.Add(new List<Sprite>());
+
+            foreach (Object asset in assets)
+            {
+                Sprite sprite = asset as Sprite;
+                if (sprite == null) continue;
+                string[] parts = sprite.name.Split('_');
+                if (parts.Length < 2) continue;
+                string rowPart = parts[parts.Length - 2];
+                if (!rowPart.StartsWith("r")) continue;
+                if (!int.TryParse(rowPart.Substring(1), out int row)) continue;
+                if (row < 0 || row >= rows.Count) continue;
+                rows[row].Add(sprite);
+            }
+
+            for (int i = 0; i < rows.Count; i++)
+            {
+                if (rows[i].Count == 0) return null;
+                rows[i].Sort((a, b) => ExtractColumn(a.name).CompareTo(ExtractColumn(b.name)));
+            }
+
+            SpriteSheetRows result = new SpriteSheetRows();
+            result.Rows = new Sprite[rows.Count][];
+            for (int i = 0; i < rows.Count; i++) result.Rows[i] = rows[i].ToArray();
+            return result;
+        }
+
+        private static int ExtractColumn(string spriteName)
+        {
+            string[] parts = spriteName.Split('_');
+            if (parts.Length == 0) return 0;
+            string colPart = parts[parts.Length - 1];
+            if (colPart.StartsWith("c") && int.TryParse(colPart.Substring(1), out int column)) return column;
+            return 0;
+        }
+
+        private static bool HasCommandLineFlag(string flag)
+        {
+            string[] args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (string.Equals(args[i], flag, System.StringComparison.OrdinalIgnoreCase)) return true;
+            }
+
+            return false;
+        }
+
+        private static EnemyBase CreateEnemyPrefab(Sprite sprite, CharacterArt art)
         {
             GameObject go = new GameObject("Enemy_Slime");
             SpriteRenderer renderer = go.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite;
             renderer.sortingOrder = 5;
+
+            if (art != null)
+            {
+                renderer.sprite = art.Idle.Rows[0][0];
+                go.transform.localScale = Vector3.one * 1.35f;
+                DirectionalSpriteAnimator animator = go.AddComponent<DirectionalSpriteAnimator>();
+                animator.Configure(renderer,
+                    art.Idle.Rows[0], art.Run.Rows[0],
+                    art.Idle.Rows[1], art.Run.Rows[1],
+                    art.Idle.Rows[2], art.Run.Rows[2]);
+            }
+
             go.AddComponent<EnemyBase>();
 
-            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(go, PrefabEnemyDir + "/Enemy_Slime.prefab");
+            string prefabPath = art != null ? ArtPrefabDir + "/Enemy_Hero.prefab" : PrefabEnemyDir + "/Enemy_Slime.prefab";
+            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(go, prefabPath);
             Object.DestroyImmediate(go);
             return prefab.GetComponent<EnemyBase>();
         }

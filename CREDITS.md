@@ -7,13 +7,19 @@
 - 游戏代码：本人编写（AI 辅助开发，核心模块逐行评审）。
 - 第三方库/包：Unity 2022.3、TextMeshPro、Unity UI、Unity Test Framework（Unity 官方，遵循 Unity 许可）。
 
-## 美术（当前）
+## 美术（当前本地美术版使用）
 
-- 占位精灵：由项目内编辑器脚本程序化生成（`Day0SceneSetup.CreateSprite`），无外部素材。
-- 正式素材计划（接入后在此登记，并把 License 放到 `Docs/assets-licenses/`）：
-  - Craftpix（免费/付费包，遵循 Craftpix File Licenses，禁止再分发源文件）
-  - Kenney（CC0）
-  - 字体：得意黑 Smiley Sans（SIL OFL 1.1）、MiSans（小米免费商用）
+- 占位精灵：由项目内编辑器脚本程序化生成（`Day0SceneSetup.CreateSprite`），公开仓库使用此版本。
+- 本地美术版（不随公开仓库分发，授权文件保留在 `Assets/ThirdParty/`）：
+  - **Craftpix** – Free Slime Mobs Pixel Art Top Down Sprite Pack（主角史莱姆，4 方向动画）
+  - **Craftpix** – Free Base 4 Direction Male Character Pixel Art（勇者敌人，4 方向动画）
+  - **Craftpix** – Top Down Dungeon Pixel Tileset（地牢素材，待接入）
+  - **Craftpix** – Free Basic Pixel Art UI for RPG、Magic Sprite Effects、Explosion Sprites（待接入）
+  - 遵循 Craftpix File Licenses：仅用于游戏成品，不 redistribute 源文件
+- 计划接入（已下载）：
+  - Kenney（CC0）：tiny dungeon、impact sounds、rpg audio
+  - Craftpix Warrior 4 Direction（Boss 候选）
+- 字体：得意黑 Smiley Sans（SIL OFL 1.1）、MiSans（小米免费商用）、Noto Sans CJK（SIL OFL 1.1，当前 UI 使用）
 
 ## 音频（计划）
 
